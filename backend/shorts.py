@@ -65,7 +65,7 @@ async def create_short(project_id, message, function, asset_ids, metrics):
         "video_concat_mode": "sequential",
         "match_materials_to_script": True,
         "video_clip_duration": 5,
-        "n_threads": 3,
+        "n_threads": 4,
         "bgm_type": "",
         "bgm_volume": 0,
         "subtitle_enabled": True,

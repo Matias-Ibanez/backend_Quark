@@ -32,7 +32,7 @@ Cuando QUARK termina un video, pregunta si querés agregar música. Respondé **
 
 Para crear un short, elegí **Short automático · solo tema** y escribí, por ejemplo, `Café de especialidad para quienes empiezan`. MoneyPrinterTurbo prepara guion breve en español, clips de Pexels, voz, subtítulos y un MP4 vertical. La música seleccionada en la conversación se agrega automáticamente. Pexels se configura una sola vez en el servidor; sin esa clave, QUARK muestra un error claro antes de gastar tokens. La imagen oficial de MoneyPrinterTurbo está fijada a la versión 1.3.7 y solo se comunica con la API por la red privada de Docker. Sus datos viven en `shorts-data`.
 
-Hermes y MoneyPrinterTurbo tienen un límite de 8 GB cada uno; el servicio web, 2 GB. Esos valores son techos, no memoria reservada ni garantía de render más veloz. En la PC de 16 GB evitá generar videos de ambos motores simultáneamente. `/api/costs` usa un delta aproximado del saldo DeepSeek para shorts cuando el proveedor lo informa; si todavía no se refleja el cobro, la ejecución queda marcada sin precio. CPU, red y almacenamiento no están incluidos.
+En una PC de 16 GB, Hermes tiene un límite de 6 GB, MoneyPrinterTurbo de 4 GB y la API de 1,5 GB; el frontend separado tiene 1 GB. Son techos, no memoria reservada ni garantía de render más veloz. El generador de shorts usa 4 hilos y ambos motores de video pueden usar hasta 4 CPU cada uno; evitá renderizar con los dos motores simultáneamente en una CPU de 4 núcleos. `/api/costs` usa un delta aproximado del saldo DeepSeek para shorts cuando el proveedor lo informa; si todavía no se refleja el cobro, la ejecución queda marcada sin precio. CPU, red y almacenamiento no están incluidos.
 
 ## Iniciar también la interfaz
 

@@ -41,7 +41,7 @@ def test_topic_only_short_uses_mpt_and_imports_single_valid_mp4(monkeypatch, tmp
     assert submitted[0]["video_subject"] == "Café de especialidad"
     assert submitted[0]["video_aspect"] == "9:16"
     assert submitted[0]["video_count"] == 1
-    assert submitted[0]["n_threads"] == 3
+    assert submitted[0]["n_threads"] == 4
     assert len(result["media"]) == 1
     assert (store.DATA / "exports" / result["media"][0].rsplit("/", 1)[-1]).is_file()
     assert len([m for m in store.messages(project["id"]) if m["media"]]) == 1

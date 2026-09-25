@@ -19,8 +19,8 @@ services:
     volumes:
       - studio-data:/data
     shm_size: 1gb
-    mem_limit: 2g
-    cpus: 3
+    mem_limit: 1536m
+    cpus: 2
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
     networks:
@@ -55,8 +55,8 @@ services:
       - ./hermes/skills/quark-style-typographic:/opt/data/skills/quark-style-typographic:ro
       - studio-data:/workspace
     shm_size: 1gb
-    mem_limit: 8g
-    cpus: 2
+    mem_limit: 6g
+    cpus: 4
     restart: unless-stopped
   shorts:
     image: ghcr.io/harry0703/moneyprinterturbo:1.3.7@sha256:999fbf91934e763a6405b4aecce9a2acaa84c76d0dcae39cf2cf170e9d530889
@@ -69,8 +69,8 @@ services:
     volumes:
       - shorts-data:/MoneyPrinterTurbo/storage
       - ./mpt/configure.py:/opt/quark/configure.py:ro
-    mem_limit: 8g
-    cpus: 3
+    mem_limit: 4g
+    cpus: 4
     shm_size: 1gb
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]

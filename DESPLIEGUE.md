@@ -30,7 +30,7 @@ Obtené `PEXELS_API_KEY` en https://www.pexels.com/api/ para que los shorts encu
 
 ```bash
 cd quark-backend
-docker compose up -d --build
+docker compose --parallel 1 up -d --build
 curl -fsS http://127.0.0.1:8011/api/health
 
 cd ../quark-frontend
@@ -39,6 +39,17 @@ curl -fsS http://127.0.0.1:8010/api/health
 ```
 
 Ambas comprobaciones deben devolver `"status":"ok"`. Iniciá primero el backend: crea la red `quark-shared` que utiliza el frontend. El primer build de Hermes instala Manim, LaTeX, Chromium y Playwright; puede tardar varios minutos y requiere espacio de disco adicional. Si el agente aún arranca, esperá antes de enviar el primer pedido.
+
+En una PC de 16 GB, los límites del backend son 6 GB para Hermes, 4 GB para shorts y 1,5 GB para la API; el frontend usa hasta 1 GB. El parámetro `--parallel 1` evita iniciar varios builds/pulls a la vez. Estos límites se aplican a contenedores en ejecución, no al proceso de build. Si `docker compose` termina con `EOF`, guardá el comando completo y la etapa en que ocurrió, y comprobá:
+
+```bash
+docker compose ps -a
+docker compose logs --tail=100
+docker system df
+docker info --format 'CPU={{.NCPU}} RAM={{.MemTotal}}'
+```
+
+Si falló mientras descargaba o construía una imagen, revisá espacio de disco, conexión y logs del daemon. Si un contenedor llegó a arrancar y se detuvo, comprobá si hubo falta de memoria con `docker inspect <nombre-contenedor> --format '{{.State.OOMKilled}}'`. Un `EOF` aislado no identifica por sí solo el problema.
 
 ## Música de YouTube para la demo
 
