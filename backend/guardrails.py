@@ -11,7 +11,9 @@ from . import costs
 
 IDENTITY_REPLY = "Soy QUARK, tu agente de marketing. Te ayudo a crear y mejorar contenido para tu marca."
 OUT_OF_SCOPE_REPLY = "Puedo ayudarte con marketing, publicaciones, videos y contenido para tu marca. Contame qué querés comunicar y a quién."
-CLARIFY_REPLY = "¿Qué querés crear o mejorar para tu marca y a quién va dirigido?"
+GREETING_REPLY = "¡Hola! Soy QUARK. Contame tu idea y la trabajamos juntos."
+ACK_REPLY = "¡Entendido! Me pongo con eso."
+CLARIFY_REPLY = "No me queda claro el pedido todavía. ¿Qué querés comunicar y para quién?"
 MEDIA_REPLY = "Listo, preparé la pieza para tu marca. Decime si querés ajustar el texto, el estilo o el movimiento."
 
 IDENTITY_PATTERN = re.compile(
@@ -24,6 +26,22 @@ PROGRAMMING_PATTERN = re.compile(
     r".{0,90}\b(?:codigo\s+(?:fuente|en\s+(?:python|javascript|java|html|css|sql))|"
     r"programa\s+(?:en|de)|funcion\s+en|script\s+en|app\s+en|python|javascript|typescript|sql|html|css)\b",
     re.S,
+)
+GREETING_PATTERN = re.compile(
+    r"^(?:(?:hola|buenas|buen dia|buenos dias|buenas tardes|buenas noches|hey|holi)(?: quark)?|"
+    r"(?:hola|buenas)(?: quark)? como estas)$"
+)
+BARE_MEDIA_PATTERN = re.compile(
+    r"^(?:(?:quiero|necesito|quisiera)\s+|(?:me\s+)?(?:hace(?:me|r)?|hazme|crea(?:me|r)?|"
+    r"arma(?:me|r)?|genera(?:me|r)?|disena(?:me|r)?)\s+)(?:un[ao]?\s+)?"
+    r"(video|reel|post|publicacion|banner|imagen|flyer|anuncio)"
+    r"(?:\s+de\s+\d{1,3}\s*(?:segundos?|minutos?))?"
+    r"(?:\s+para\s+(?:mi\s+)?(?:marca|instagram|redes(?: sociales)?))?[!?.,\s]*$"
+)
+MARKETING_PATTERN = re.compile(
+    r"\b(?:marketing|marca|campana|publicidad|anuncio|promocion|copy|caption|contenido|"
+    r"redes sociales|instagram|clientes|ventas|audiencia|reel|video|post|publicacion|"
+    r"banner|flyer|imagen|calendario editorial)\b"
 )
 PRIVATE_OUTPUT = re.compile(
     r"```|\b(?:Hermes|DeepSeek|OpenRouter|OmniRoute|Manim|FFmpeg|Pillow|rembg|Docker|"
@@ -40,26 +58,55 @@ def normalize(value):
     return "".join(char for char in value if not unicodedata.combining(char))
 
 
+def plain_text(value):
+    return " ".join(re.sub(r"[^\w\s]", " ", normalize(value)).split())
+
+
 def direct_reply(message):
     normalized = normalize(message)
     if IDENTITY_PATTERN.search(normalized):
         return IDENTITY_REPLY
     if PROGRAMMING_PATTERN.search(normalized):
         return OUT_OF_SCOPE_REPLY
+    if GREETING_PATTERN.fullmatch(plain_text(message)):
+        return GREETING_REPLY
     return None
 
 
 def is_clear_content_request(message):
     """Don't ask again when the customer already requested a concrete brand asset."""
     return bool(
-        re.search(r"\b(?:banner|logo|publicaci[oó]n|post|reel|anuncio|flyer|afiche|pieza|campa[nñ]a)\b", message, re.I)
+        re.search(r"\b(?:banner|logo|publicaci[oó]n|post|reel|video|vídeo|imagen|anuncio|flyer|afiche|pieza|campa[nñ]a|copy)\b", message, re.I)
         and re.search(r"\b(?:cre\w*|hac\w*|haz\w*|gener\w*|arm\w*|diseñ\w*|redact\w*|mejor\w*|edit\w*|revis\w*)\b", message, re.I)
     )
 
 
-async def route_request(message, recent_messages):
+def missing_brief_reply(message, recent_messages, asset_ids=None):
+    """Ask one concrete question only when a new conversation has no subject at all."""
+    if asset_ids or any(item["role"] == "assistant" and item.get("media") for item in recent_messages[-8:]):
+        return None
+    if any(item["role"] == "user" and len(plain_text(item["content"]).split()) >= 5
+           for item in recent_messages[-8:]):
+        return None
+    match = BARE_MEDIA_PATTERN.fullmatch(plain_text(message))
+    if not match:
+        return None
+    if match.group(1) in ("video", "reel"):
+        return "Claro. ¿Sobre qué producto, servicio o idea querés el video?"
+    return "Claro. ¿Qué producto o mensaje querés destacar en la pieza?"
+
+
+def is_clarifying_reply(content):
+    """A safe question from Hermes can be shown even when no media was produced."""
+    return content.strip().endswith("?") and len(content) < 800 and not PRIVATE_OUTPUT.search(content)
+
+
+async def route_request(message, recent_messages, asset_ids=None):
     """Return a safe reply for non-marketing requests; None means proceed to Hermes."""
     reply = direct_reply(message)
+    if reply:
+        return reply
+    reply = missing_brief_reply(message, recent_messages, asset_ids)
     if reply:
         return reply
     if is_clear_content_request(message):
@@ -70,6 +117,9 @@ async def route_request(message, recent_messages):
             for item in recent_messages[-8:])
             and re.search(r"\b(?:video|vídeo|reel|post|publicaci[oó]n|imagen)\b", message, re.I)
             and re.search(r"\b(?:rehac\w*|mejor\w*|agreg\w*|edit\w*|cambi\w*|ajust\w*)\b", message, re.I)):
+        return None
+
+    if MARKETING_PATTERN.search(normalize(message)):
         return None
 
     classifier_prompt = (

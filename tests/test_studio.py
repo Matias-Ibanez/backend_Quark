@@ -56,7 +56,7 @@ def test_hermes_creates_image_and_records_deepseek_cost(monkeypatch):
     store.add_message(p["id"], "user", "Mi marca vende cursos de canto")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
     monkeypatch.setattr(costs, "rate_period", lambda timestamp=None: "peak")
-    async def allow(message, recent): return None
+    async def allow(message, recent, asset_ids=None): return None
     monkeypatch.setattr(guardrails, "route_request", allow)
     calls = []
 
@@ -73,6 +73,9 @@ def test_hermes_creates_image_and_records_deepseek_cost(monkeypatch):
         async def __aexit__(self, *args): pass
         async def post(self, url, **kwargs):
             calls.append(kwargs)
+            assert [item["content"] for item in store.messages(p["id"])[-2:]] == [
+                "Creá un post. No hagas video.", guardrails.ACK_REPLY,
+            ]
             folder = store.DATA / "hermes" / p["id"]
             Image.new("RGB", (100, 100), "#553388").save(folder / "final.png")
             return Response()
@@ -97,7 +100,7 @@ def test_hermes_creates_image_and_records_deepseek_cost(monkeypatch):
 def test_video_without_mp4_is_failure_but_usage_is_counted(monkeypatch):
     p = project()
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
-    async def allow(message, recent): return None
+    async def allow(message, recent, asset_ids=None): return None
     monkeypatch.setattr(guardrails, "route_request", allow)
 
     class Response:
@@ -204,6 +207,52 @@ def test_identity_is_quark_and_skips_paid_calls(monkeypatch):
     result = asyncio.run(agent.chat(p["id"], "¿Quién sos y sobre qué corrés?"))
     assert result["message"] == guardrails.IDENTITY_REPLY
     assert store.messages(p["id"])[-1]["content"] == guardrails.IDENTITY_REPLY
+
+
+def test_greeting_and_missing_brief_get_immediate_answers_without_model(monkeypatch):
+    p = project()
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+
+    class NoClient:
+        def __init__(self, **kwargs): raise AssertionError("A greeting or missing brief must not call a model")
+
+    monkeypatch.setattr(guardrails.httpx, "AsyncClient", NoClient)
+    greeting = asyncio.run(agent.chat(p["id"], "¡Hola, QUARK!"))
+    assert greeting["message"] == guardrails.GREETING_REPLY
+    assert guardrails.direct_reply("Buen día") == guardrails.GREETING_REPLY
+
+    other = project()
+    question = asyncio.run(agent.chat(other["id"], "Haceme un video de 30 segundos"))
+    assert "¿Sobre qué" in question["message"]
+    assert [item["role"] for item in store.messages(other["id"])] == ["user", "assistant"]
+    assert "¿Qué producto" in asyncio.run(guardrails.route_request(
+        "Creá un post", store.messages(p["id"])))
+    assert asyncio.run(guardrails.route_request("Creá un post", [], ["foto-del-producto"])) is None
+    assert asyncio.run(guardrails.route_request("¿Me ayudás con el copy de mi marca?", [])) is None
+
+
+def test_hermes_question_is_delivered_without_a_finished_video(monkeypatch):
+    p = project()
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+
+    async def allow(message, recent, asset_ids=None): return None
+    monkeypatch.setattr(guardrails, "route_request", allow)
+
+    class Response:
+        status_code = 200
+        def json(self):
+            return {"choices": [{"message": {"content": "¿Qué duración querés para el video?"}}], "usage": {}}
+
+    class FakeClient:
+        def __init__(self, **kwargs): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): pass
+        async def post(self, url, **kwargs): return Response()
+
+    monkeypatch.setattr(agent.httpx, "AsyncClient", FakeClient)
+    result = asyncio.run(agent.chat(p["id"], "Prepará un video sobre mi nuevo producto"))
+    assert result["message"] == "¿Qué duración querés para el video?"
+    assert [item["role"] for item in store.messages(p["id"])] == ["user", "assistant", "assistant"]
 
 
 def test_unrelated_request_is_stopped_before_hermes(monkeypatch):

@@ -17,7 +17,7 @@ En Windows PowerShell, reemplazá el montaje de la última línea por `-v "${PWD
 ## Resultado local
 
 - `studio` y `hermes` arrancaron desde este repositorio; `web` arrancó desde `landing-quark`. La API respondió en `127.0.0.1:8011` y mediante el proxy de Next.js en `127.0.0.1:8010` con `"status":"ok"`. `/chat` devolvió HTTP 200.
-- Pasaron **21 pruebas** del backend y compiló el frontend separado con TypeScript, tanto localmente como en su imagen Docker.
+- Pasaron **23 pruebas** del backend, incluidos saludo sin llamada al modelo, aclaración de briefs incompletos y entrega de preguntas de Hermes sin archivo final. El frontend separado compiló con TypeScript, tanto localmente como en su imagen Docker.
 - Hermes pudo leer las skills de QUARK y Manim y escribir en el directorio del proyecto del volumen compartido.
 - Se exportó un video de ejemplo de **30,49 segundos**, vertical de 1080 × 1920, con audio AAC. Se revisaron fotogramas del inicio, desarrollo y cierre. Los clips previos de 5,97 y 10,6 segundos fueron retirados de la galería porque no cumplían el pedido de 30 segundos.
 - Los mensajes guardados se revisaron después de la migración: no contenían rutas del contenedor, enlaces de archivo escritos en el texto ni imágenes base64.
