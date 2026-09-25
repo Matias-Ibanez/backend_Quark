@@ -61,6 +61,16 @@ def assets(project_id: str):
     return store.project_assets(project_id)
 
 
+class AttachAsset(Strict):
+    assetId: str
+
+
+@router.post("/api/projects/{project_id}/assets")
+def attach_asset(project_id: str, body: AttachAsset):
+    store.attach_assets(project_id, [body.assetId])
+    return store.get_asset(body.assetId)
+
+
 class CalendarDraft(Strict):
     project_id: str
     job_id: str | None = None

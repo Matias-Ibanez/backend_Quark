@@ -52,7 +52,7 @@ services:
       - ./hermes/skills/quark-style-typographic:/opt/data/skills/quark-style-typographic:ro
       - studio-data:/workspace
     shm_size: 1gb
-    mem_limit: 4g
+    mem_limit: 8g
     cpus: 2
     restart: unless-stopped
 volumes:

@@ -122,12 +122,22 @@ def import_hermes_media(project_id, folder, before, target_seconds=None, require
         export_name = f"hermes-{project_id}-{store.uid()}.{kind}"
         destination = store.DATA / "exports" / export_name
         shutil.copy2(source, destination)
+        original_url = None
+        if kind == "mp4":
+            from . import music
+            mixed, selection = music.mix_export(project_id, destination, duration)
+            if selection:
+                original_url = f"/media/exports/{export_name}"
+                destination = mixed
+                export_name = mixed.name
         document = dict(project["document"])
         caption = folder / "caption.txt"
         if caption.is_file():
             document["caption"] = caption.read_text(encoding="utf-8")[:2200]
         payload = {"document": document, "revision": project["revision"], "kind": kind, "quality": "final", "scene": 0, "hermes": True}
         result = {"url": f"/media/exports/{export_name}", "filename": export_name}
+        if original_url:
+            result["originalUrl"] = original_url
         with store.connection() as db:
             db.execute("INSERT INTO jobs (id,project_id,kind,status,progress,payload,result,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)", (store.uid(), project_id, "render", "done", 1, json.dumps(payload), json.dumps(result), store.now(), store.now()))
         created.append(result["url"])

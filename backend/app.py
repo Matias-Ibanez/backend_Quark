@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel, Field
-from . import store, agent, instagram, workspace, costs
+from . import store, agent, instagram, workspace, costs, music
 from .models import CreateProject, EditProject, Crop, Brand, Chat
 
 Image.MAX_IMAGE_PIXELS = 25_000_000
@@ -281,5 +281,6 @@ def download_project(project_id: str):
 
 app.include_router(instagram.router)
 app.include_router(workspace.router)
+app.include_router(music.router)
 app.mount("/media/assets", StaticFiles(directory=store.DATA / "assets"), name="assets")
 app.mount("/media/exports", StaticFiles(directory=store.DATA / "exports"), name="exports")

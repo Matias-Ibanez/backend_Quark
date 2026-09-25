@@ -28,6 +28,8 @@ La respuesta debe incluir `"status":"ok"`. `studio` publica la API solo en `127.
 
 En el chat, cada publicación estática se entrega como SVG escalable. El backend guarda también una vista PNG para la galería y para la futura publicación en Instagram. Las skills editoriales, de producto y tipográficas viven en `hermes/skills/` y se montan automáticamente con Compose.
 
+Para agregar música a un video, abrí una conversación, subí un archivo MP3, WAV, OGG o M4A del que tengas derechos de uso y elegí el inicio y fin del tramo en **Música de fondo**. Podés escuchar el tramo, definir en qué segundo del video empieza, ajustar el volumen y aplicarlo al último MP4. La selección se conserva para los siguientes videos de esa conversación. La mezcla se hace con FFmpeg y mantiene la voz original. El contenedor Hermes dispone de un límite de 8 GB; en una máquina de 16 GB evitá generar varios videos al mismo tiempo.
+
 ## Iniciar también la interfaz
 
 Cloná [landing-quark](https://github.com/Matias-Ibanez/landing-quark) en otra carpeta. Con el backend ya iniciado, ejecutá allí:

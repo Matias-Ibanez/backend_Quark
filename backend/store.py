@@ -52,6 +52,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS inbox(id TEXT PRIMARY KEY, sender TEXT NOT NULL, text TEXT NOT NULL, timestamp REAL NOT NULL, reply TEXT, replied_at TEXT);
         CREATE TABLE IF NOT EXISTS publications(id TEXT PRIMARY KEY, job_id TEXT NOT NULL UNIQUE, status TEXT NOT NULL, container_id TEXT, media_id TEXT, error TEXT, created_at TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS project_assets(project_id TEXT NOT NULL REFERENCES projects(id), asset_id TEXT NOT NULL REFERENCES assets(id), PRIMARY KEY(project_id,asset_id));
+        CREATE TABLE IF NOT EXISTS project_music(project_id TEXT PRIMARY KEY REFERENCES projects(id), asset_id TEXT NOT NULL REFERENCES assets(id), source_start REAL NOT NULL, source_end REAL NOT NULL, video_start REAL NOT NULL, volume REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), status TEXT NOT NULL, error TEXT, created_at TEXT NOT NULL);
         CREATE UNIQUE INDEX IF NOT EXISTS active_run ON runs(project_id) WHERE status='running';
         CREATE TABLE IF NOT EXISTS calendar(id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), job_id TEXT REFERENCES jobs(id), title TEXT NOT NULL, scheduled_at TEXT NOT NULL, status TEXT NOT NULL, error TEXT, created_at TEXT NOT NULL);
