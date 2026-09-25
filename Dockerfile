@@ -1,0 +1,13 @@
+FROM python:3.12-slim-bookworm
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 DATA_DIR=/data
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg curl && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY requirements.txt ./
+RUN pip install -r requirements.txt
+COPY backend ./backend
+COPY hermes/SYSTEM.md ./SYSTEM.md
+COPY hermes/skills/quark-marketing/SKILL.md ./marketing-skill.md
+RUN mkdir -p /data && groupadd -g 10000 shared && useradd -m -u 10001 -G shared studio && chown -R studio:studio /data /app
+USER studio
+EXPOSE 8000
+CMD ["python", "-m", "backend.launch"]
