@@ -1,0 +1,9 @@
+# Keep Docker build inputs and source files consistent across Windows and Linux.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.mp4 binary

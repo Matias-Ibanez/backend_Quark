@@ -1,0 +1,61 @@
+name: lienzo
+services:
+  web:
+    build: ./frontend
+    ports:
+      - "127.0.0.1:${STUDIO_PORT:-8010}:3000"
+    depends_on:
+      studio:
+        condition: service_healthy
+    mem_limit: 1g
+    cpus: 1
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+  studio:
+    build: .
+    init: true
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      WEB_PORT: ${STUDIO_PORT:-8010}
+      HERMES_BASE_URL: http://hermes:8642/v1
+      HERMES_API_KEY: ${HERMES_API_KEY:-lienzo-local-development-key}
+      PUBLIC_APP_ORIGIN: ${PUBLIC_APP_ORIGIN:-}
+    volumes:
+      - studio-data:/data
+    shm_size: 1gb
+    mem_limit: 6g
+    cpus: 3
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 40s
+      retries: 5
+  hermes:
+    build: ./hermes
+    depends_on:
+      studio:
+        condition: service_healthy
+    command: ["gateway", "run"]
+    environment:
+      API_SERVER_ENABLED: "true"
+      API_SERVER_HOST: 0.0.0.0
+      API_SERVER_KEY: ${HERMES_API_KEY:-lienzo-local-development-key}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      HERMES_WRITE_SAFE_ROOT: /workspace
+      U2NET_HOME: /opt/data/rembg-models
+    volumes:
+      - hermes-data:/opt/data
+      - ./hermes/config.yaml:/opt/data/config.yaml:ro
+      - ./hermes/skills/quark-marketing:/opt/data/skills/quark-marketing:ro
+      - studio-data:/workspace
+    mem_limit: 3g
+    cpus: 2
+    restart: unless-stopped
+volumes:
+  studio-data:
+  hermes-data:

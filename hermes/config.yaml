@@ -1,0 +1,20 @@
+model:
+  provider: deepseek
+  default: deepseek-flash
+agent:
+  max_turns: 30
+auxiliary:
+  background_review:
+    enabled: false
+skills:
+  creation_nudge_interval: 0
+  write_approval: true
+curator:
+  enabled: false
+platform_toolsets:
+  api_server:
+    - terminal
+    - file
+    - skills
+    - vision
+    - video
