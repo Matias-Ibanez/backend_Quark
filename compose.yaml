@@ -13,10 +13,13 @@ services:
       HERMES_BASE_URL: http://hermes:8642/v1
       HERMES_API_KEY: ${HERMES_API_KEY:-lienzo-local-development-key}
       PUBLIC_APP_ORIGIN: ${PUBLIC_APP_ORIGIN:-}
+      SHORTS_BASE_URL: http://shorts:8080
+      SHORTS_API_KEY: ${SHORTS_API_KEY:-}
+      PEXELS_API_KEY: ${PEXELS_API_KEY:-}
     volumes:
       - studio-data:/data
     shm_size: 1gb
-    mem_limit: 6g
+    mem_limit: 2g
     cpus: 3
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
@@ -55,9 +58,26 @@ services:
     mem_limit: 8g
     cpus: 2
     restart: unless-stopped
+  shorts:
+    image: ghcr.io/harry0703/moneyprinterturbo:1.3.7@sha256:999fbf91934e763a6405b4aecce9a2acaa84c76d0dcae39cf2cf170e9d530889
+    init: true
+    command: ["sh", "-c", "python /opt/quark/configure.py && python main.py"]
+    environment:
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      PEXELS_API_KEY: ${PEXELS_API_KEY:-}
+      SHORTS_API_KEY: ${SHORTS_API_KEY:-}
+    volumes:
+      - shorts-data:/MoneyPrinterTurbo/storage
+      - ./mpt/configure.py:/opt/quark/configure.py:ro
+    mem_limit: 8g
+    cpus: 3
+    shm_size: 1gb
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
 volumes:
   studio-data:
   hermes-data:
+  shorts-data:
 
 networks:
   quark-shared:

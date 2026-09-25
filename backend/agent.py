@@ -220,16 +220,20 @@ Función elegida: {function}."""
 async def chat(project_id, message, function="content", asset_ids=None, run_id=None):
     if not deepseek_key_configured():
         raise HTTPException(503, "El agente no está disponible en este momento. Contactá a soporte.")
-    safe_reply = await guardrails.route_request(message, store.messages(project_id), asset_ids)
+    from . import shorts
+    short_request = shorts.is_short_request(message, function)
+    safe_reply = ((guardrails.direct_reply(message) or guardrails.missing_brief_reply(message, store.messages(project_id), asset_ids))
+                  if short_request else await guardrails.route_request(message, store.messages(project_id), asset_ids))
     if safe_reply:
         store.add_message(project_id, "user", message)
         store.add_message(project_id, "assistant", safe_reply)
         return {"message": safe_reply, "project": store.get_project(project_id)}
-    metrics = {"usage": None, "provider": "deepseek", "model": MODEL, "media_kind": None, "media_count": 0}
+    metrics = {"usage": None, "provider": "deepseek", "model": MODEL, "media_kind": None, "media_count": 0, "billed_usd": None}
     started = time.monotonic()
     status = "done"
     try:
-        return await _hermes_chat(project_id, message, function, asset_ids, metrics)
+        return await (shorts.create_short(project_id, message, function, asset_ids, metrics) if short_request
+                      else _hermes_chat(project_id, message, function, asset_ids, metrics))
     except Exception:
         status = "failed"
         raise

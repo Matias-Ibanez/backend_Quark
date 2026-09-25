@@ -50,9 +50,11 @@ def estimate(provider, model, tokens):
     return round(((incoming - cached) * input_rate + cached * cache_rate + outgoing * output_rate) / 1_000_000, 8), RATE_SOURCE
 
 
-def record(*, run_id, project_id, provider, model, status, usage, media_kind, media_count, duration_seconds):
+def record(*, run_id, project_id, provider, model, status, usage, media_kind, media_count, duration_seconds, billed_usd=None):
     tokens = token_usage(usage)
     cost, rate_source = estimate(provider, model, tokens)
+    if billed_usd is not None:
+        cost, rate_source = billed_usd, "DeepSeek balance delta (approximate; may include concurrent requests)"
     with store.connection() as db:
         db.execute(
             "INSERT INTO agent_usage VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",

@@ -16,7 +16,7 @@ Copy-Item .env.example .env
 cp .env.example .env
 ```
 
-Completá `DEEPSEEK_API_KEY` en `.env` y luego iniciá los dos servicios:
+Completá `DEEPSEEK_API_KEY` en `.env`. Para crear shorts automáticos agregá una clave gratuita `PEXELS_API_KEY` obtenida en [Pexels API](https://www.pexels.com/api/). Luego iniciá los servicios:
 
 ```bash
 docker compose up -d --build
@@ -28,7 +28,11 @@ La respuesta debe incluir `"status":"ok"`. `studio` publica la API solo en `127.
 
 En el chat, cada publicación estática se entrega como SVG escalable. El backend guarda también una vista PNG para la galería y para la futura publicación en Instagram. Las skills editoriales, de producto y tipográficas viven en `hermes/skills/` y se montan automáticamente con Compose.
 
-Para agregar música a un video, abrí una conversación, subí un archivo MP3, WAV, OGG o M4A del que tengas derechos de uso y elegí el inicio y fin del tramo en **Música de fondo**. Podés escuchar el tramo, definir en qué segundo del video empieza, ajustar el volumen y aplicarlo al último MP4. La selección se conserva para los siguientes videos de esa conversación. La mezcla se hace con FFmpeg y mantiene la voz original. El contenedor Hermes dispone de un límite de 8 GB; en una máquina de 16 GB evitá generar varios videos al mismo tiempo.
+Para agregar música a un video, abrí una conversación, subí un archivo MP3, WAV, OGG o M4A del que tengas derechos de uso y elegí el inicio y fin del tramo en **Música de fondo**. Podés escuchar el tramo, definir en qué segundo del video empieza, ajustar el volumen y aplicarlo al último MP4. La selección se conserva para los siguientes videos de esa conversación. La mezcla se hace con FFmpeg y mantiene la voz original. `ytmdl` no se integró: descarga canciones de YouTube pero no concede derechos para usarlas en publicidad.
+
+Para crear un short, elegí **Short automático · solo tema** y escribí, por ejemplo, `Café de especialidad para quienes empiezan`. MoneyPrinterTurbo prepara guion breve en español, clips de Pexels, voz, subtítulos y un MP4 vertical. La música seleccionada en la conversación se agrega automáticamente. Pexels se configura una sola vez en el servidor; sin esa clave, QUARK muestra un error claro antes de gastar tokens. La imagen oficial de MoneyPrinterTurbo está fijada a la versión 1.3.7 y solo se comunica con la API por la red privada de Docker. Sus datos viven en `shorts-data`.
+
+Hermes y MoneyPrinterTurbo tienen un límite de 8 GB cada uno; el servicio web, 2 GB. Esos valores son techos, no memoria reservada ni garantía de render más veloz. En la PC de 16 GB evitá generar videos de ambos motores simultáneamente. `/api/costs` usa un delta aproximado del saldo DeepSeek para shorts cuando el proveedor lo informa; si todavía no se refleja el cobro, la ejecución queda marcada sin precio. CPU, red y almacenamiento no están incluidos.
 
 ## Iniciar también la interfaz
 

@@ -29,3 +29,11 @@ La duración, el formato y la presencia de audio se verifican automáticamente. 
 - Pasaron **25 pruebas** del backend en Docker, incluidas la entrega de SVG con vista PNG y el rechazo de elementos ejecutables o recursos externos. El frontend compiló con TypeScript y se desplegó junto al backend.
 - Las tres plantillas vectoriales (editorial, producto y tipográfica) se validaron y renderizaron con Playwright/Chromium. También se verificó la incrustación de una imagen local dentro del SVG y el rechazo de una imagen faltante.
 - Una solicitud real al agente produjo una publicación editorial en SVG de 2,7 KB con ocho elementos de texto vectorial y siete rectángulos; la vista PNG se revisó visualmente. El chat recibió el SVG, la galería conservó el PNG de vista previa y la API respondió con `status: ok` a través del frontend.
+
+## Música y shorts automáticos
+
+- Pasaron **28 pruebas** del backend en Docker, incluidas la validación y mezcla real de un tramo de audio, la selección del MP4 narrado de MoneyPrinterTurbo y el registro aproximado del costo. El frontend compiló con TypeScript tanto localmente como en Docker y `/chat` devolvió HTTP 200.
+- El contenedor MoneyPrinterTurbo 1.3.7 arrancó sin exponer puerto al host. Su API respondió y reconoció DeepSeek V4 Flash y Pexels. La clave real quedó solo en `.env`, excluida de Git.
+- Una petición real con solo el tema `Café de especialidad para una cafetería pequeña` generó clips de Pexels, voz y subtítulos. La primera integración descartó correctamente un MP4 mudo: MoneyPrinterTurbo entrega `combined_videos` sin voz y `videos` con voz. Tras corregir la selección, QUARK entregó **un único MP4 de 34,92 segundos**, 1080 × 1920, 21,5 MB y audio audible (pico -6,2 dB). Se inspeccionaron fotogramas a los 2, 7, 15, 25 y 33 segundos.
+- Durante el render el contenedor de shorts usó aproximadamente 0,7–1,0 GB de su límite de 8 GB. El cuello de botella local fue CPU; elevar solo el límite de RAM no acelera el render.
+- El saldo USD de DeepSeek observado antes y después de la segunda prueba se mantuvo en `1.76`; la API redondea ese dato y no permite atribuir un costo exacto a este short. `/api/costs` lo deja sin precio en vez de informar un cero engañoso. La mezcla musical automática con un video de Hermes se probó con FFmpeg; la combinación con un short real aún no se ejecutó.
