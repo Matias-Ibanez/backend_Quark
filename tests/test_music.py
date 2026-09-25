@@ -1,4 +1,6 @@
 import io
+import asyncio
+import json
 import os
 import subprocess
 import tempfile
@@ -8,8 +10,25 @@ os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="quark-music-test-")
 from fastapi.testclient import TestClient
 from backend.app import app
 from backend import agent, store
+from backend import music
 
 client = TestClient(app)
+
+
+def test_video_music_offer_and_chat_acceptance(monkeypatch):
+    project = client.post("/api/projects", json={"name": "Video con música"}).json()
+    project_id = project["id"]
+    payload = {"document": project["document"], "revision": 1, "kind": "mp4", "quality": "final"}
+    with store.connection() as db:
+        db.execute("INSERT INTO jobs (id,project_id,kind,status,progress,payload,result,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                   (store.uid(), project_id, "render", "done", 1, json.dumps(payload), json.dumps({"url": "/media/exports/example.mp4"}), store.now(), store.now()))
+    offer = music.offer_after_video(project_id, "Tu video está listo.")
+    assert offer.endswith(music.MUSIC_OFFER)
+    store.add_message(project_id, "assistant", offer, media=["/media/exports/example.mp4"])
+    reply = asyncio.run(agent.chat(project_id, "Sí"))
+    assert reply["message"] == music.MUSIC_UPLOAD_PROMPT
+    assert len(store.messages(project_id)) == 3
+    assert asyncio.run(agent.chat(project_id, "agregar música"))["message"] == music.MUSIC_UPLOAD_PROMPT
 
 
 def test_music_selection_and_mix_preserve_video_duration_and_audio():

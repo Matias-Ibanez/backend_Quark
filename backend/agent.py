@@ -213,11 +213,18 @@ Función elegida: {function}."""
     if (wants_media or wants_image) and not media:
         raise HTTPException(422, "No pude terminar la pieza. Probá con una descripción más breve o ajustá el pedido.")
     content = guardrails.public_reply(content, media)
+    if any(path.endswith(".mp4") for path in media):
+        from . import music
+        content = music.offer_after_video(project_id, content)
     store.add_message(project_id, "assistant", content, media=media)
     return {"message": content, "media": media, "project": store.get_project(project_id)}
 
 
 async def chat(project_id, message, function="content", asset_ids=None, run_id=None):
+    from . import music
+    music_reply = music.reply_to_offer(project_id, message) if not asset_ids else None
+    if music_reply:
+        return music_reply
     if not deepseek_key_configured():
         raise HTTPException(503, "El agente no está disponible en este momento. Contactá a soporte.")
     from . import shorts

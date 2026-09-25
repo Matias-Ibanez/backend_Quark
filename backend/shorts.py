@@ -128,7 +128,7 @@ async def create_short(project_id, message, function, asset_ids, metrics):
     with store.connection() as db:
         db.execute("INSERT INTO jobs (id,project_id,kind,status,progress,payload,result,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
                    (store.uid(), project_id, "render", "done", 1, json.dumps(payload), json.dumps(result), store.now(), store.now()))
-    reply = "Listo, preparé un short vertical sobre " + subject[:100] + "."
+    reply = music.offer_after_video(project_id, "Listo, preparé un short vertical sobre " + subject[:100] + ".")
     store.add_message(project_id, "assistant", reply, media=[url])
     metrics["provider"] = "deepseek-via-moneyprinterturbo"
     metrics["model"] = "deepseek-v4-flash"

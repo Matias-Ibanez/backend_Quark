@@ -1,6 +1,7 @@
 """Persist licensed audio selections and mix an exact excerpt into finished MP4s."""
 import json
 import logging
+import re
 import subprocess
 
 from fastapi import APIRouter, HTTPException
@@ -11,6 +12,42 @@ from .models import Strict
 
 router = APIRouter()
 log = logging.getLogger("quark.music")
+MUSIC_OFFER = "¿Querés agregarle música de fondo?"
+MUSIC_UPLOAD_PROMPT = "¡Dale! Adjuntá una canción que puedas usar en tu publicación. Después elegí el tramo, escuchalo y aplicalo al video desde el control de música que aparece acá."
+
+
+def offer_after_video(project_id, reply):
+    """Offer music once a finished video exists, unless this chat already selected it."""
+    return reply if get_selection(project_id) else f"{reply}\n\n{MUSIC_OFFER}"
+
+
+def reply_to_offer(project_id, message):
+    """Handle the immediate yes/no in the chat without invoking the media agent."""
+    history = store.messages(project_id)
+    previous = next((item for item in reversed(history) if item["role"] == "assistant"), None)
+    offering = bool(previous and previous["content"].endswith(MUSIC_OFFER))
+    if not offering:
+        asks_music = re.fullmatch(r"\s*(?:(?:quiero|pod[eé]s|puedes|agreg[aá]|pon[eé]|sum[aá]|a[nñ]ad[ií])\s+)?(?:agregar\s+)?(?:una\s+)?m[uú]sica(?:\s+de\s+fondo)?(?:\s+al\s+video)?[.!?\s]*", message, re.I)
+        if not asks_music:
+            return None
+        with store.connection() as db:
+            has_video = any((store.get_job(row["id"])["result"] or {}).get("url", "").endswith(".mp4") for row in db.execute("SELECT id FROM jobs WHERE project_id=? AND kind='render' AND status='done' ORDER BY created_at DESC LIMIT 40", (project_id,)).fetchall())
+        if not has_video:
+            return None
+        reply = MUSIC_UPLOAD_PROMPT
+        store.add_message(project_id, "user", message)
+        store.add_message(project_id, "assistant", reply)
+        return {"message": reply, "project": store.get_project(project_id)}
+    answer = message.strip().casefold().strip(".!¡¿? ")
+    if answer in {"sí", "si", "claro", "dale", "bueno", "ok", "quiero", "sí quiero", "si quiero"}:
+        reply = MUSIC_UPLOAD_PROMPT
+    elif answer in {"no", "no gracias", "sin música", "sin musica", "dejalo así", "dejalo asi"}:
+        reply = "Perfecto, dejamos el video sin música de fondo."
+    else:
+        return None
+    store.add_message(project_id, "user", message)
+    store.add_message(project_id, "assistant", reply)
+    return {"message": reply, "project": store.get_project(project_id)}
 
 
 class MusicSelection(Strict):
