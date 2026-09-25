@@ -46,8 +46,13 @@ services:
       - hermes-data:/opt/data
       - ./hermes/config.yaml:/opt/data/config.yaml:ro
       - ./hermes/skills/quark-marketing:/opt/data/skills/quark-marketing:ro
+      - ./hermes/skills/quark-static-post:/opt/data/skills/quark-static-post:ro
+      - ./hermes/skills/quark-style-editorial:/opt/data/skills/quark-style-editorial:ro
+      - ./hermes/skills/quark-style-product:/opt/data/skills/quark-style-product:ro
+      - ./hermes/skills/quark-style-typographic:/opt/data/skills/quark-style-typographic:ro
       - studio-data:/workspace
-    mem_limit: 3g
+    shm_size: 1gb
+    mem_limit: 4g
     cpus: 2
     restart: unless-stopped
 volumes:

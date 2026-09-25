@@ -1,6 +1,6 @@
 # QUARK · backend
 
-Este repositorio contiene la API, Hermes, las herramientas multimedia y los datos persistentes de QUARK. La interfaz vive en [landing-quark](https://github.com/Matias-Ibanez/landing-quark). DeepSeek aporta el modelo; Manim, FFmpeg, Pillow y rembg producen los medios en el servidor, sin GPU dedicada ni generación de fotografías por difusión.
+Este repositorio contiene la API, Hermes, las herramientas multimedia y los datos persistentes de QUARK. La interfaz vive en [landing-quark](https://github.com/Matias-Ibanez/landing-quark). DeepSeek aporta el modelo; las publicaciones estáticas se crean como SVG vectorial editable y Playwright/Chromium genera una vista PNG. Manim y FFmpeg producen videos, y rembg separa sujetos de fotos subidas. Todo corre sin GPU dedicada y sin generación de fotografías por difusión. Una foto incorporada en un SVG sigue siendo raster; el texto y las formas son vectores.
 
 ## Iniciar el backend
 
@@ -24,7 +24,9 @@ docker compose ps
 curl -fsS http://127.0.0.1:8011/api/health
 ```
 
-La respuesta debe incluir `"status":"ok"`. `studio` publica la API solo en `127.0.0.1:8011`; Hermes permanece en la red privada de Docker. `studio-data` conserva proyectos, mensajes y medios; `hermes-data` conserva las sesiones y configuración del agente. El primer build de Hermes puede tardar varios minutos por Manim y LaTeX.
+La respuesta debe incluir `"status":"ok"`. `studio` publica la API solo en `127.0.0.1:8011`; Hermes permanece en la red privada de Docker. `studio-data` conserva proyectos, mensajes y medios; `hermes-data` conserva las sesiones y configuración del agente. El primer build de Hermes puede tardar varios minutos y ocupar varios GB por Manim, LaTeX y Chromium.
+
+En el chat, cada publicación estática se entrega como SVG escalable. El backend guarda también una vista PNG para la galería y para la futura publicación en Instagram. Las skills editoriales, de producto y tipográficas viven en `hermes/skills/` y se montan automáticamente con Compose.
 
 ## Iniciar también la interfaz
 

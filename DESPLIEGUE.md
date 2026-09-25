@@ -37,7 +37,7 @@ docker compose up -d --build
 curl -fsS http://127.0.0.1:8010/api/health
 ```
 
-Ambas comprobaciones deben devolver `"status":"ok"`. Iniciá primero el backend: crea la red `quark-shared` que utiliza el frontend. El primer build de Hermes instala Manim y LaTeX y puede tardar varios minutos. Si el agente aún arranca, esperá antes de enviar el primer pedido.
+Ambas comprobaciones deben devolver `"status":"ok"`. Iniciá primero el backend: crea la red `quark-shared` que utiliza el frontend. El primer build de Hermes instala Manim, LaTeX, Chromium y Playwright; puede tardar varios minutos y requiere espacio de disco adicional. Si el agente aún arranca, esperá antes de enviar el primer pedido.
 
 ## Proxy HTTPS
 

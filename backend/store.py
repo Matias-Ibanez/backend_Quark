@@ -75,7 +75,7 @@ def init_db():
             content = row["content"]
             existing = json.loads(row["media"])
             urls = list(dict.fromkeys([*existing, *re.findall(
-                r"/media/exports/[A-Za-z0-9][A-Za-z0-9._-]*\.(?:mp4|png)", content)]))
+                r"/media/exports/[A-Za-z0-9][A-Za-z0-9._-]*\.(?:mp4|png|svg)", content)]))
             urls = [url for url in urls if (DATA / "exports" / url.rsplit("/", 1)[-1]).is_file()]
             cleaned = guardrails.public_reply(content, urls)
             if cleaned != content or urls != existing:

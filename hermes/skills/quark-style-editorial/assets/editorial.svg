@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+  <rect width="1080" height="1350" fill="#181e33"/>
+  <path d="M1105 166 C 475 65, 207 764, 1111 1230" fill="none" stroke="#eead80" stroke-width="2" opacity="0.65"/>
+  <path d="M1100 263 C 560 187, 318 776, 1110 1160" fill="none" stroke="#e9e7e2" stroke-width="2" opacity="0.24"/>
+  <text x="76" y="96" fill="#f6f1e9" font-family="Arial, sans-serif" font-size="25" font-weight="700" letter-spacing="5" data-check="brand">TU MARCA</text>
+  <text x="846" y="96" fill="#f6f1e9" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="3" data-check="series">EDICIÓN 01</text>
+  <text x="76" y="290" fill="#ffbd8b" font-family="Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="5" data-check="eyebrow">ALGO NUEVO SE ACERCA</text>
+  <text x="70" y="420" fill="#f9f6ee" font-family="Arial, sans-serif" font-size="104" font-weight="700" letter-spacing="-6" data-check="headline"><tspan x="70">Una idea que</tspan><tspan x="70" dy="105">se siente.</tspan></text>
+  <rect x="76" y="624" width="170" height="8" fill="#ffbd8b"/>
+  <text x="76" y="711" fill="#f9f6ee" font-family="Arial, sans-serif" font-size="35" data-check="description"><tspan x="76">Una propuesta para mirar lo cotidiano</tspan><tspan x="76" dy="46">de otra manera.</tspan></text>
+  <line x1="76" y1="1180" x2="1004" y2="1180" stroke="#f9f6ee" opacity="0.6" stroke-width="2"/>
+  <text x="76" y="1253" fill="#f9f6ee" font-family="Arial, sans-serif" font-size="25" data-check="footer">Próximamente</text>
+  <rect x="760" y="1208" width="244" height="68" rx="34" fill="none" stroke="#ffbd8b" stroke-width="2"/>
+  <text x="789" y="1251" fill="#ffbd8b" font-family="Arial, sans-serif" font-size="25" font-weight="700" data-check="cta">Descubrí más ↗</text>
+</svg>

@@ -49,6 +49,10 @@ async def local_origin(request: Request, call_next):
             return JSONResponse({"detail": "Origen no permitido"}, status_code=403)
     response = await call_next(request)
     if request.url.path.startswith("/media/"):
+        if request.url.path.startswith("/media/exports/") and request.url.path.endswith(".svg"):
+            response.headers["Content-Security-Policy"] = "sandbox; default-src 'none'; img-src data:"
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
         origin = request.headers.get("origin", "")
         if urlparse(origin).hostname in ("localhost", "127.0.0.1"):
             response.headers["Access-Control-Allow-Origin"] = origin

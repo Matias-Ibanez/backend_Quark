@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+  <rect width="1080" height="1350" fill="#eee66b"/>
+  <path d="M-70 354 L 1175 134" stroke="#1e2531" stroke-width="3"/>
+  <path d="M-70 379 L 1175 159" stroke="#1e2531" stroke-width="1" opacity="0.55"/>
+  <text x="76" y="96" fill="#1e2531" font-family="Arial, sans-serif" font-size="25" font-weight="700" letter-spacing="5" data-check="brand">TU MARCA</text>
+  <text x="877" y="96" fill="#1e2531" font-family="Arial, sans-serif" font-size="22" font-weight="700" data-check="edition">01 / 03</text>
+  <text x="76" y="266" fill="#1e2531" font-family="Arial, sans-serif" font-size="24" font-weight="700" letter-spacing="4" data-check="eyebrow">UNA IDEA PARA HOY</text>
+  <text x="63" y="550" fill="#1e2531" font-family="Arial, sans-serif" font-size="140" font-weight="700" letter-spacing="-10" data-check="headline"><tspan x="63">Hacelo</tspan><tspan x="63" dy="135">a tu</tspan><tspan x="63" dy="135">manera.</tspan></text>
+  <rect x="76" y="1005" width="928" height="2" fill="#1e2531"/>
+  <text x="76" y="1070" fill="#1e2531" font-family="Arial, sans-serif" font-size="31" data-check="description">Una invitación a crear algo propio.</text>
+  <rect x="76" y="1190" width="295" height="81" rx="40" fill="#1e2531"/>
+  <text x="116" y="1242" fill="#eee66b" font-family="Arial, sans-serif" font-size="27" font-weight="700" data-check="cta">DESCUBRÍ MÁS ↗</text>
+  <text x="801" y="1242" fill="#1e2531" font-family="Arial, sans-serif" font-size="22" data-check="footer">HECHO PARA VOS</text>
+</svg>

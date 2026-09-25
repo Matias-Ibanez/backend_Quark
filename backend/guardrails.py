@@ -34,14 +34,14 @@ GREETING_PATTERN = re.compile(
 BARE_MEDIA_PATTERN = re.compile(
     r"^(?:(?:quiero|necesito|quisiera)\s+|(?:me\s+)?(?:hace(?:me|r)?|hazme|crea(?:me|r)?|"
     r"arma(?:me|r)?|genera(?:me|r)?|disena(?:me|r)?)\s+)(?:un[ao]?\s+)?"
-    r"(video|reel|post|publicacion|banner|imagen|flyer|anuncio)"
+    r"(video|reel|post|publicacion|banner|imagen|flyer|anuncio|svg)"
     r"(?:\s+de\s+\d{1,3}\s*(?:segundos?|minutos?))?"
     r"(?:\s+para\s+(?:mi\s+)?(?:marca|instagram|redes(?: sociales)?))?[!?.,\s]*$"
 )
 MARKETING_PATTERN = re.compile(
     r"\b(?:marketing|marca|campana|publicidad|anuncio|promocion|copy|caption|contenido|"
     r"redes sociales|instagram|clientes|ventas|audiencia|reel|video|post|publicacion|"
-    r"banner|flyer|imagen|calendario editorial)\b"
+    r"banner|flyer|imagen|svg|calendario editorial)\b"
 )
 PRIVATE_OUTPUT = re.compile(
     r"```|\b(?:Hermes|DeepSeek|OpenRouter|OmniRoute|Manim|FFmpeg|Pillow|rembg|Docker|"
@@ -76,7 +76,7 @@ def direct_reply(message):
 def is_clear_content_request(message):
     """Don't ask again when the customer already requested a concrete brand asset."""
     return bool(
-        re.search(r"\b(?:banner|logo|publicaci[oó]n|post|reel|video|vídeo|imagen|anuncio|flyer|afiche|pieza|campa[nñ]a|copy)\b", message, re.I)
+        re.search(r"\b(?:banner|logo|publicaci[oó]n|post|reel|video|vídeo|imagen|svg|anuncio|flyer|afiche|pieza|campa[nñ]a|copy)\b", message, re.I)
         and re.search(r"\b(?:cre\w*|hac\w*|haz\w*|gener\w*|arm\w*|diseñ\w*|redact\w*|mejor\w*|edit\w*|revis\w*)\b", message, re.I)
     )
 

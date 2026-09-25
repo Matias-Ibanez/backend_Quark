@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 from backend.app import app
 from backend import agent, costs, guardrails, store, instagram
+from hermes.renderer.svg_artifact import InvalidSVG, finalize_svg
 
 client = TestClient(app)
 
@@ -77,13 +78,16 @@ def test_hermes_creates_image_and_records_deepseek_cost(monkeypatch):
                 "Creá un post. No hagas video.", guardrails.ACK_REPLY,
             ]
             folder = store.DATA / "hermes" / p["id"]
-            Image.new("RGB", (100, 100), "#553388").save(folder / "final.png")
+            Image.new("RGB", (1080, 1350), "#553388").save(folder / "final.png")
+            (folder / "final.svg").write_text(
+                '<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350">'
+                '<rect width="1080" height="1350" fill="#553388"/></svg>', encoding="utf-8")
             return Response()
 
     monkeypatch.setattr(agent.httpx, "AsyncClient", FakeClient)
     result = asyncio.run(agent.chat(p["id"], "Creá un post. No hagas video.", run_id="test-run"))
     assert "Archivo generado:" not in result["message"]
-    assert len(result["media"]) == 1 and result["media"][0].endswith(".png")
+    assert len(result["media"]) == 1 and result["media"][0].endswith(".svg")
     assert store.messages(p["id"])[-1]["media"] == result["media"]
     assert "Mi marca vende cursos de canto" in calls[0]["json"]["messages"][0]["content"]
     assert "QUARK marketing production" in calls[0]["json"]["messages"][0]["content"]
@@ -183,6 +187,41 @@ def test_image_request_imports_only_the_verified_image(tmp_path):
     (folder / "final.mp4").write_bytes(b"an unrelated stale video")
     media = agent.import_hermes_media(p["id"], folder, {}, preferred_kind="png")
     assert len(media) == 1 and media[0].endswith(".png")
+
+
+def test_vector_image_is_delivered_with_png_preview_for_publishing(tmp_path):
+    p = project()
+    folder = tmp_path / "vector"
+    folder.mkdir()
+    Image.new("RGB", (1080, 1350), "#e5d8b4").save(folder / "final.png")
+    (folder / "final.svg").write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350">'
+        '<rect width="1080" height="1350" fill="#e5d8b4"/>'
+        '<text x="100" y="200">Hola</text></svg>', encoding="utf-8")
+    media = agent.import_hermes_media(p["id"], folder, {}, preferred_kind="png", require_vector=True)
+    assert len(media) == 1 and media[0].endswith(".svg")
+    response = client.get(media[0])
+    assert response.status_code == 200 and response.headers["content-type"].startswith("image/svg+xml")
+    assert "sandbox" in response.headers["content-security-policy"]
+    with store.connection() as db:
+        row = db.execute("SELECT result,payload FROM jobs WHERE project_id=? ORDER BY created_at DESC LIMIT 1", (p["id"],)).fetchone()
+    result, payload = json.loads(row["result"]), json.loads(row["payload"])
+    assert result["vectorUrl"] == media[0] and result["url"].endswith(".png")
+    assert payload["kind"] == "png"
+
+
+def test_svg_validation_rejects_script_and_external_resources():
+    safe = b'<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350"><text x="40" y="80">Hola</text></svg>'
+    assert b"Hola" in finalize_svg(safe)
+    bad = (
+        b'<script xmlns="http://www.w3.org/2000/svg"/>',
+        b'<image xmlns="http://www.w3.org/2000/svg" href="https://example.com/a.png"/>',
+        b'<rect xmlns="http://www.w3.org/2000/svg" onclick="alert(1)"/>',
+        b'<foreignObject xmlns="http://www.w3.org/2000/svg"/>',
+    )
+    for element in bad:
+        with pytest.raises(InvalidSVG):
+            finalize_svg(safe.replace(b'<text x="40" y="80">Hola</text>', element))
 
 
 def test_old_inline_media_is_migrated_out_of_message_text():
