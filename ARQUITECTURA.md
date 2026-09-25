@@ -3,8 +3,8 @@
 ```mermaid
 flowchart LR
     U[Usuario] --> TLS[Proxy TLS y autenticación]
-    TLS --> WEB[Next.js · web]
-    WEB --> API[FastAPI · studio]
+    TLS --> WEB[landing-quark · Next.js]
+    WEB -->|red quark-shared| API[backend_Quark · FastAPI]
     API --> DB[(SQLite y archivos)]
     API -->|sesión por proyecto| H[Hermes API]
     H -->|LLM| D[DeepSeek Flash]
@@ -16,7 +16,7 @@ flowchart LR
     API -. módulo separado .-> IG[Instagram Graph API]
 ```
 
-`web` publica únicamente `127.0.0.1:8010`; `studio` y `hermes` quedan en la red Docker. El proxy TLS del servidor debe autenticar al operador. `PUBLIC_APP_ORIGIN` autoriza el origen HTTPS en el backend.
+`landing-quark` publica `127.0.0.1:8010` desde su propio Compose. `backend_Quark` publica la API en `127.0.0.1:8011` para comprobaciones locales y conecta `studio` a la red `quark-shared`; Hermes permanece en la red privada del backend. El proxy TLS del servidor debe autenticar al operador. `PUBLIC_APP_ORIGIN` autoriza el origen HTTPS en el backend.
 
 Un pedido se guarda como ejecución en `runs`. FastAPI lo envía a Hermes con `X-Hermes-Session-Id` estable por proyecto, los pedidos anteriores del usuario y la guía de producción de QUARK. Hermes lee recursos de `/workspace/assets` y conserva fuentes editables en `/workspace/hermes/<id>`. Solo `final.mp4` o `final.png` puede convertirse en un adjunto. FastAPI verifica el formato, la duración solicitada y la presencia de audio cuando se pidió locución; nunca rescata una escena parcial como si fuera el video completo. Crea una copia inmutable para la galería. Las siguientes instrucciones reutilizan la sesión y las fuentes para cambiar la misma pieza. Las herramientas de generación por difusión están deshabilitadas; las fotos vienen del usuario.
 

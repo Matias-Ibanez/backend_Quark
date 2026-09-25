@@ -10,7 +10,6 @@ __pycache__
 pytest-cache-files-*
 test-results
 reference
-frontend
 build-quark.log
 build-web.log
 .tmp

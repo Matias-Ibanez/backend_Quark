@@ -84,4 +84,5 @@ def test_run_persists_failure_and_context(monkeypatch):
 
 def test_proxy_preserves_origin_protection():
     assert client.get("/api/settings", headers={"Host": "studio:8000", "Origin": "http://localhost:8010"}).status_code == 200
+    assert client.get("/api/settings", headers={"Host": "localhost:8011", "Origin": "http://localhost:3000"}).status_code == 200
     assert client.get("/api/settings", headers={"Host": "studio:8000", "Origin": "https://evil.example"}).status_code == 403
