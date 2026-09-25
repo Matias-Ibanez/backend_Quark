@@ -3,6 +3,9 @@ import json
 import logging
 import re
 import subprocess
+import tempfile
+import shutil
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from pydantic import Field, model_validator
@@ -13,7 +16,75 @@ from .models import Strict
 router = APIRouter()
 log = logging.getLogger("quark.music")
 MUSIC_OFFER = "¿Querés agregarle música de fondo?"
-MUSIC_UPLOAD_PROMPT = "¡Dale! Adjuntá una canción que puedas usar en tu publicación. Después elegí el tramo, escuchalo y aplicalo al video desde el control de música que aparece acá."
+MUSIC_UPLOAD_PROMPT = "¡Dale! Buscá la canción por nombre o adjuntá un audio en el control de música que aparece acá. Después elegí el tramo, escuchalo y aplicalo al video."
+
+
+class MusicSearch(Strict):
+    query: str = Field(min_length=2, max_length=120)
+
+
+class MusicImport(Strict):
+    videoId: str = Field(pattern=r"^[A-Za-z0-9_-]{11}$")
+    title: str = Field(min_length=1, max_length=160)
+
+
+@router.post("/api/projects/{project_id}/music/search")
+def search_music(project_id: str, body: MusicSearch):
+    store.get_project(project_id)
+    try:
+        import yt_dlp
+        with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "extract_flat": True,
+                               "skip_download": True, "socket_timeout": 12, "noplaylist": True}) as downloader:
+            result = downloader.extract_info("ytsearch6:" + body.query, download=False)
+        tracks = []
+        for item in (result or {}).get("entries", []):
+            video_id = item.get("id", "")
+            seconds = item.get("duration")
+            if re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id) and (seconds is None or 1 <= seconds <= 600):
+                tracks.append({"videoId": video_id, "title": str(item.get("title") or "Canción")[:160],
+                               "channel": str(item.get("channel") or item.get("uploader") or "")[:100],
+                               "duration": seconds})
+        return tracks
+    except Exception:
+        log.exception("Music search failed")
+        raise HTTPException(502, "No pude buscar canciones ahora. Probá con otro nombre o adjuntá un archivo.")
+
+
+@router.post("/api/projects/{project_id}/music/import")
+def import_music(project_id: str, body: MusicImport):
+    store.get_project(project_id)
+    asset_id = store.uid()
+    with tempfile.TemporaryDirectory(prefix="quark-ytmdl-") as temporary:
+        command = ["ytmdl", "--quiet", "--skip-meta", "--ignore-chapters", "--disable-file",
+                   "--format", "mp3", "--filename", "track", "--output-dir", temporary]
+        # An optional Netscape cookie file can be placed in the private studio volume.
+        # Never send cookies to the browser or include them in logs.
+        cookiefile = store.DATA / "youtube-cookies.txt"
+        if cookiefile.is_file():
+            config = Path(temporary) / "yt-dlp.conf"
+            config.write_text(f"--cookies {cookiefile}\n", encoding="utf-8")
+            command.extend(["--ytdl-config", str(config)])
+        command.extend(["--url", "https://www.youtube.com/watch?v=" + body.videoId])
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, timeout=180,
+                                    stdin=subprocess.DEVNULL)
+        except (subprocess.TimeoutExpired, OSError):
+            log.exception("ytmdl failed to start or timed out")
+            raise HTTPException(502, "La canción tardó demasiado. Probá con otra.")
+        audio = next((path for path in Path(temporary).rglob("*.mp3") if path.is_file()), None)
+        if result.returncode or audio is None or not 0 < audio.stat().st_size <= 30 * 1024 * 1024:
+            log.warning("ytmdl failed: code=%s output=%s", result.returncode, result.stderr[-400:])
+            if "sign in to confirm" in (result.stderr + result.stdout).lower():
+                raise HTTPException(502, "YouTube pidió verificar el acceso desde este servidor. Adjuntá un archivo o configurá el acceso de YouTube para la demo.")
+            raise HTTPException(502, "No pude obtener esa canción. Probá con otra o adjuntá un archivo.")
+        duration = audio_duration(audio)
+        if not 1 <= duration <= 600:
+            raise HTTPException(422, "La canción debe durar menos de 10 minutos.")
+        filename = asset_id + ".mp3"
+        shutil.copy2(audio, store.DATA / "assets" / filename)
+    asset = store.add_asset(body.title, filename, "audio", asset_id=asset_id)
+    store.attach_assets(project_id, [asset_id])
+    return {"asset": asset, "duration": duration}
 
 
 def offer_after_video(project_id, reply):

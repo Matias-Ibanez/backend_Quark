@@ -1,5 +1,6 @@
 .env
 .env.*
+*cookies*.txt
 !.env.example
 .venv/
 node_modules/

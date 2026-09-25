@@ -40,6 +40,20 @@ curl -fsS http://127.0.0.1:8010/api/health
 
 Ambas comprobaciones deben devolver `"status":"ok"`. Iniciá primero el backend: crea la red `quark-shared` que utiliza el frontend. El primer build de Hermes instala Manim, LaTeX, Chromium y Playwright; puede tardar varios minutos y requiere espacio de disco adicional. Si el agente aún arranca, esperá antes de enviar el primer pedido.
 
+## Música de YouTube para la demo
+
+Después de crear un video, respondé **Sí** a la pregunta de música. El panel permite buscar por nombre, elegir una pista, escuchar un tramo y aplicarlo al MP4. La búsqueda usa `yt-dlp`; la descarga usa `ytmdl`. No necesita una clave de API. YouTube puede exigir verificación y bloquear la descarga desde algunas redes o servidores; en ese caso el chat lo informa y podés adjuntar un MP3 propio.
+
+Si tu conexión requiere verificación, podés colocar un archivo de cookies de YouTube en formato Netscape dentro del volumen privado de `studio`. El archivo es opcional y no debe subirse a Git:
+
+```bash
+docker compose cp ./youtube-cookies.txt studio:/data/youtube-cookies.txt
+docker compose exec -u root studio chown studio:studio /data/youtube-cookies.txt
+docker compose exec -u root studio chmod 600 /data/youtube-cookies.txt
+```
+
+Usá una sesión propia y conservá ese archivo en privado; las cookies pueden vencer. Las instrucciones de exportación están en la [guía de yt-dlp](https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies). La descarga desde YouTube no otorga por sí sola derechos de publicación.
+
 ## Proxy HTTPS
 
 Agregá estas directivas dentro del `server` HTTPS que ya tiene tu certificado. El ejemplo usa autenticación básica de Nginx; creá `/etc/nginx/quark.htpasswd` según la configuración de tu servidor.

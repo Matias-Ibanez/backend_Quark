@@ -12,6 +12,46 @@ from backend.app import app
 from backend import agent, store
 from backend import music
 
+
+def test_music_search_and_import_use_selected_video(monkeypatch):
+    project = client.post("/api/projects", json={"name": "Buscar canción"}).json()
+    class FakeDownloader:
+        def __init__(self, options): self.options = options
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def extract_info(self, query, download):
+            assert query == "ytsearch6:tema de prueba"
+            return {"entries": [{"id": "AbCdEfGhI12", "title": "Pista de prueba", "duration": 80},
+                                {"id": "../bad", "title": "Inválida", "duration": 80}]}
+    import yt_dlp
+    monkeypatch.setattr(yt_dlp, "YoutubeDL", FakeDownloader)
+    found = client.post(f"/api/projects/{project['id']}/music/search", json={"query": "tema de prueba"})
+    assert found.status_code == 200
+    assert len(found.json()) == 1
+
+    def fake_run(command, **kwargs):
+        assert command[0] == "ytmdl"
+        assert command[-1] == "https://www.youtube.com/watch?v=AbCdEfGhI12"
+        (Path(command[command.index("--output-dir") + 1]) / "track.mp3").write_bytes(b"audio")
+        return subprocess.CompletedProcess(command, 0, "", "")
+    from pathlib import Path
+    monkeypatch.setattr(music.subprocess, "run", fake_run)
+    monkeypatch.setattr(music, "audio_duration", lambda path: 80)
+    imported = client.post(f"/api/projects/{project['id']}/music/import", json={"videoId": "AbCdEfGhI12", "title": "Pista de prueba"})
+    assert imported.status_code == 200
+    assert imported.json()["asset"]["name"] == "Pista de prueba"
+    assert imported.json()["asset"]["id"] in {asset["id"] for asset in store.project_assets(project["id"])}
+    assert client.post(f"/api/projects/{project['id']}/music/import", json={"videoId": "../bad", "title": "X"}).status_code == 422
+
+
+def test_music_import_explains_youtube_verification(monkeypatch):
+    project = client.post("/api/projects", json={"name": "YouTube bloqueado"}).json()
+    monkeypatch.setattr(music.subprocess, "run", lambda command, **kwargs: subprocess.CompletedProcess(
+        command, 255, "", "Sign in to confirm you’re not a bot"))
+    response = client.post(f"/api/projects/{project['id']}/music/import", json={"videoId": "AbCdEfGhI12", "title": "Pista"})
+    assert response.status_code == 502
+    assert "YouTube pidió verificar" in response.json()["detail"]
+
 client = TestClient(app)
 
 
