@@ -68,3 +68,11 @@ La duración, el formato y la presencia de audio se verifican automáticamente. 
 - Backend: 78 pruebas aprobadas. Las imágenes enviadas se guardan como referencias de medios del mensaje del usuario, no solo como recursos globales del proyecto. Se verificó devolución por historial, descarga de la imagen y conservación después de inicializar la base.
 - Producción, respuestas directas y brief usan el mismo guardado del turno con sus adjuntos. La API y la tabla messages mantienen el contrato existente, sin migraciones.
 - Reversión: revertir add_user_message y sus llamadas/tests; los mensajes existentes y archivos siguen almacenados. El frontend anterior puede ignorar esos medios sin romper la conversación.
+
+## 2026-09-26 — Detalles editables y lenguaje claro
+
+- Suite backend completa en Docker: 85 pruebas aprobadas, con una advertencia existente de Starlette. Comando: `docker compose run --rm --no-deps -v ./backend:/app/backend:ro -v ./tests:/app/tests:ro -v ./hermes/SYSTEM.md:/app/SYSTEM.md:ro -e DATA_DIR=/tmp/quark-tests -e PYTHONPATH=/app studio pytest -q tests`.
+- Se verificaron texto exacto solicitado con modo automático, guardado parcial antes de preguntas posteriores, confirmación incompleta rechazada, conservación de colores/texto para la revisión, recuperación de un intento automático fallido y cambio de tipo de pieza con duración/láminas disponibles.
+- Interfaz, respuestas, errores y política del agente usan términos cotidianos. El filtro de respuestas también sustituye el término anterior; las rutas y claves del contrato HTTP se conservan.
+- Prueba real por HTTP y navegador: imagen sin contexto abre preguntas sin llamar al proveedor; guardado parcial con colores/texto pendientes devuelve inputs editables. Se completaron las etapas y el resumen conservó el texto y los colores. No se inició una generación para esta comprobación. Captura ignorada: `.tmp/detalles-texto-editable.png`.
+- Reversión: revertir los cambios de esta unidad en backend/brief.py, backend/guardrails.py y hermes/SYSTEM.md, con sus pruebas y documentación. No modifica el esquema ni elimina conversaciones, SVG o PNG.

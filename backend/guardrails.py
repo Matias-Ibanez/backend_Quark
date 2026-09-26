@@ -174,6 +174,7 @@ def public_reply(content, media):
     content = re.sub(r"data:image/[a-z0-9.+-]+;base64,[a-z0-9+/=\s]+", "", content, flags=re.I)
     content = re.sub(r"<img\b[^>]*>", "", content, flags=re.I)
     content = re.sub(r"(?im)^\s*Archivo generado\s*:.*$", "", content)
+    content = re.sub(r"\bbrief(?: creativo)?\b", "resumen de la pieza", content, flags=re.I)
     content = re.sub(r"\n{3,}", "\n\n", content).strip()
     if len(content) > 6000:
         content = content[:6000].rsplit(" ", 1)[0].strip() + "…"

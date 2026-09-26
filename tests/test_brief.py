@@ -185,6 +185,84 @@ def test_brand_color_question_is_visible_without_palette_question(monkeypatch):
     assert len(fields) == 1 and fields[0]["key"] == "colors" and "when" not in fields[0]
 
 
+def test_missing_exact_text_is_editable_even_when_planner_selects_auto(monkeypatch):
+    async def plan(*args):
+        return brief.Intake(answers=brief.Answers(subject="Café"), missing=["copy_mode", "copy_text"])
+    monkeypatch.setattr(brief, "assess", plan)
+    pid, saved = start(monkeypatch, "Creá una imagen sobre café con mi texto")
+    result = client.get(f"/api/projects/{pid}/brief").json()
+    assert saved["answers"]["copy_mode"] == "exact"
+    assert any(f["key"] == "copy_text" for f in result["fields"])
+    assert "brief" not in json.dumps(result["fields"], ensure_ascii=False).lower()
+
+
+def test_draft_can_be_saved_before_later_required_fields_are_completed(monkeypatch):
+    pid, saved = start(monkeypatch)
+    answers = dict(saved["answers"], subject="Café", palette="custom", copy_mode="exact")
+    payload = {"id": saved["id"], "version": saved["version"], "action": "save", "answers": answers}
+    url = f"/api/projects/{pid}/brief"
+    response = client.put(url, json=payload)
+    assert response.status_code == 200
+    fields = client.get(url).json()["fields"]
+    assert {"colors", "copy_text"} <= {f["key"] for f in fields}
+    payload.update(version=response.json()["brief"]["version"], action="confirm")
+    assert client.put(url, json=payload).status_code == 422
+    payload["action"] = "save"
+    payload["answers"].update(colors="#112233", copy_text="Mi promoción")
+    response = client.put(url, json=payload)
+    assert response.status_code == 200
+    assert {"colors", "copy_text"} <= {f["key"] for f in client.get(url).json()["fields"]}
+    payload["version"] = response.json()["brief"]["version"]
+    payload["action"] = "cancel"
+    assert client.put(url, json=payload).status_code == 200
+
+
+def test_incomplete_planner_answers_add_only_required_questions(monkeypatch):
+    async def plan(*args):
+        return brief.Intake(answers=brief.Answers(subject="Café", palette="custom", copy_mode="exact"), missing=[])
+    monkeypatch.setattr(brief, "assess", plan)
+    pid, saved = start(monkeypatch, "Creá una imagen sobre café con texto exacto y colores propios")
+    assert saved["status"] == "draft"
+    assert {f["key"] for f in client.get(f"/api/projects/{pid}/brief").json()["fields"]} == {"colors", "copy_text"}
+
+
+def test_failed_automatic_request_offers_an_adjustment_input(monkeypatch):
+    pid, saved = start(monkeypatch, "Creá una imagen sobre café")
+    with store.connection() as db:
+        db.execute("UPDATE brief_questions SET fields='[]' WHERE brief_id=?", (saved["id"],))
+    brief.finish(pid, "failed")
+    assert [f["key"] for f in client.get(f"/api/projects/{pid}/brief").json()["fields"]] == ["notes"]
+
+
+def test_public_messages_use_everyday_language(monkeypatch):
+    from backend import guardrails
+    pid, _ = start(monkeypatch)
+    result = brief.maybe_start(pid, "Sí", "content", [])
+    assert "brief" not in result["message"].lower()
+    assert guardrails.public_reply("Revisá el brief creativo.", []) == "Revisá el resumen de la pieza."
+
+
+def test_customer_can_choose_automatic_copy_after_being_asked_for_exact_text(monkeypatch):
+    async def plan(*args):
+        return brief.Intake(answers=brief.Answers(subject="Café"), missing=["copy_mode", "copy_text"])
+    monkeypatch.setattr(brief, "assess", plan)
+    pid, saved = start(monkeypatch, "Creá una imagen sobre café")
+    answers = dict(saved["answers"], copy_mode="auto")
+    url = f"/api/projects/{pid}/brief"
+    assert client.put(url, json={"id": saved["id"], "version": saved["version"], "action": "save", "answers": answers}).status_code == 200
+    assert client.get(url).json()["brief"]["answers"]["copy_mode"] == "auto"
+
+
+def test_medium_question_includes_duration_and_slide_inputs(monkeypatch):
+    async def plan(*args):
+        return brief.Intake(answers=brief.Answers(subject="Café"), missing=["medium"])
+    monkeypatch.setattr(brief, "assess", plan)
+    pid, _ = start(monkeypatch, "Creá una pieza sobre café")
+    fields = client.get(f"/api/projects/{pid}/brief").json()["fields"]
+    assert {f["key"] for f in fields} == {"medium", "seconds", "slides"}
+    assert next(f for f in fields if f["key"] == "seconds")["when"] == ["medium", "video"]
+
+
 @pytest.mark.parametrize("invalid", [False, True])
 def test_structured_intake_validates_model_and_missing_duration(monkeypatch, invalid):
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test")

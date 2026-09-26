@@ -41,11 +41,21 @@ class Answers(Strict):
 
     @model_validator(mode="after")
     def conditional_values(self):
-        if self.palette == "custom" and not re.fullmatch(r"\s*#[0-9a-fA-F]{6}(?:\s*,\s*#[0-9a-fA-F]{6}){0,4}\s*", self.colors):
+        if self.palette == "custom" and self.colors.strip() and not re.fullmatch(r"\s*#[0-9a-fA-F]{6}(?:\s*,\s*#[0-9a-fA-F]{6}){0,4}\s*", self.colors):
             raise ValueError("Ingresá entre uno y cinco colores HEX separados por comas, por ejemplo #112233, #FFAA00.")
-        if self.copy_mode == "exact" and not self.copy_text.strip():
-            raise ValueError("Escribí el texto que debe aparecer en la pieza.")
         return self
+
+    def missing_required(self):
+        missing = []
+        if not self.subject.strip():
+            missing.append("subject")
+        if not self.audience.strip():
+            missing.append("audience")
+        if self.palette == "custom" and not self.colors.strip():
+            missing.append("colors")
+        if self.copy_mode == "exact" and not self.copy_text.strip():
+            missing.append("copy_text")
+        return missing
 
 
 def field(key, title, group, choices=None, **extra):
@@ -68,7 +78,7 @@ FIELDS = [
     field("font", "Nombre de la tipografía (opcional; usaré una alternativa si no está disponible)", 2, maxLength=100),
     field("tone", "¿Cómo debe sonar el mensaje?", 2, [["friendly", "Cercano"], ["formal", "Profesional"], ["energetic", "Enérgico"], ["educational", "Didáctico"]]),
     field("assets", "¿Usamos las fotos y recursos adjuntos?", 2, [["use", "Usar los adjuntos"], ["none", "Solo texto y elementos gráficos"]]),
-    field("copy_mode", "Texto de la pieza", 3, [["auto", "Redactalo con mi brief"], ["exact", "Usá exactamente mi texto"]]),
+    field("copy_mode", "Texto de la pieza", 3, [["auto", "Redactalo con mi pedido"], ["exact", "Usá exactamente mi texto"]]),
     field("copy_text", "Texto exacto", 3, when=["copy_mode", "exact"], maxLength=2000),
     field("cta", "¿Qué querés que haga quien lo vea? (opcional)", 3, maxLength=300),
     field("facts", "Datos confirmados: fechas, precios, dirección, contacto… (opcional)", 3, maxLength=2000),
@@ -95,7 +105,7 @@ def maybe_start(project_id, message, function, asset_ids, *, quiet=False):
         return None
     current = get(project_id)
     if current and current["status"] in ("draft", "failed"):
-        reply = "Completá las opciones del brief y revisá el resumen antes de crear. También podés cancelarlo para cambiar de idea."
+        reply = "Completá los detalles de la pieza y revisá tus respuestas antes de crear. También podés cancelarlo para cambiar de idea."
     else:
         history = store.messages(project_id)
         # Revisions retain their existing creative direction; a new piece can be requested explicitly.
@@ -132,7 +142,7 @@ def maybe_start(project_id, message, function, asset_ids, *, quiet=False):
             db.execute("INSERT OR REPLACE INTO project_briefs VALUES (?,?,?,?,?,?,?,?,?)", (
                 project_id, store.uid(), "draft", 1, message, function, json.dumps(asset_ids or []),
                 answers.model_dump_json(), store.now()))
-        reply = "Antes de crear, definamos el contenido, el formato y el estilo. Elegí las opciones del brief; donde prefieras, podés dejar que yo elija. Revisá el resumen y confirmá cuando esté listo."
+        reply = "Antes de crear, definamos el contenido, el formato y el estilo. Elegí las opciones; donde prefieras, podés dejar que yo elija. Revisá tus respuestas y confirmá cuando esté listo."
     if not quiet:
         store.add_user_message(project_id, message, asset_ids)
         store.add_message(project_id, "assistant", reply)
@@ -210,6 +220,10 @@ async def adaptive_start(project_id, message, function, asset_ids):
         store.add_message(project_id, "assistant", result["message"])
         return result
     decision = await assess(project_id, message, function, current["answers"])
+    # An exact-text question must open its input even if the planner left auto selected.
+    if "copy_text" in decision.missing:
+        decision.answers.copy_mode = "exact"
+    decision.missing = list(dict.fromkeys(decision.missing + decision.answers.missing_required()))
     with store.connection() as db:
         db.execute("INSERT OR REPLACE INTO brief_questions VALUES (?,?)", (current["id"], json.dumps(decision.missing)))
         db.execute("UPDATE project_briefs SET answers=?,status=? WHERE project_id=? AND id=?", (
@@ -228,9 +242,16 @@ def read_brief(project_id: str):
     with store.connection() as db:
         row = db.execute("SELECT fields FROM brief_questions WHERE brief_id=?", (current["id"],)).fetchone() if current else None
     keys = json.loads(row["fields"]) if row else None
+    if current and keys and "copy_text" in keys and "copy_mode" not in keys and not current["answers"].get("copy_text", "").strip():
+        current["answers"]["copy_mode"] = "exact"
+    if current and current["status"] in ("draft", "failed") and keys is not None:
+        keys = list(dict.fromkeys(keys + Answers.model_validate(current["answers"]).missing_required()))
+        # A failed automatic request can have no questions. Offer a usable adjustment input.
+        if not keys:
+            keys = ["notes"]
     fields = [f for f in FIELDS if keys is None or f["key"] in keys]
     # Include dependent inputs when the customer chooses a custom palette or exact copy.
-    for parent, child in (("palette", "colors"), ("copy_mode", "copy_text")):
+    for parent, child in (("palette", "colors"), ("copy_mode", "copy_text"), ("medium", "seconds"), ("medium", "slides")):
         if any(f["key"] == parent for f in fields) and not any(f["key"] == child for f in fields):
             fields.append(next(f for f in FIELDS if f["key"] == child))
     visible_keys = {f["key"] for f in fields}
@@ -249,18 +270,25 @@ class UpdateBrief(Strict):
 async def update_brief(project_id: str, body: UpdateBrief):
     current = get(project_id)
     if not current or current["id"] != body.id or current["version"] != body.version or current["status"] not in ("draft", "failed"):
-        raise HTTPException(409, "El brief cambió. Recargá sus opciones antes de continuar.")
-    if body.action == "confirm" and (not body.answers.subject.strip() or not body.answers.audience.strip()):
-        raise HTTPException(422, "Completá el tema y el público antes de crear.")
+        raise HTTPException(409, "Los detalles cambiaron. Recargá las opciones antes de continuar.")
+    if body.action == "confirm" and body.answers.missing_required():
+        titles = {f["key"]: f["title"] for f in FIELDS}
+        raise HTTPException(422, "Completá estos datos antes de crear: " + "; ".join(titles[key] for key in body.answers.missing_required()))
     if body.action == "confirm" and guardrails.BARE_MEDIA_PATTERN.fullmatch(guardrails.plain_text(body.answers.subject)):
         raise HTTPException(422, "Indicá el producto, tema o idea; pedir una imagen no define su contenido.")
     with store.connection() as db:
         if db.execute("SELECT 1 FROM runs WHERE project_id=? AND status='running'", (project_id,)).fetchone():
             raise HTTPException(409, "Esperá a que termine el pedido actual.")
+        questions = db.execute("SELECT fields FROM brief_questions WHERE brief_id=?", (current["id"],)).fetchone()
+        if questions and body.action == "save":
+            # Keep newly requested dependent inputs in the final review after they are filled.
+            keys = list(dict.fromkeys(json.loads(questions["fields"]) +
+                        Answers.model_validate(current["answers"]).missing_required() + body.answers.missing_required()))
+            db.execute("UPDATE brief_questions SET fields=? WHERE brief_id=?", (json.dumps(keys), current["id"]))
         updated = db.execute("UPDATE project_briefs SET answers=?,status=?,version=version+1,updated_at=? WHERE project_id=? AND id=? AND version=? AND status IN ('draft','failed')", (
             body.answers.model_dump_json(), "confirmed" if body.action == "confirm" else "cancelled" if body.action == "cancel" else "draft", store.now(), project_id, body.id, body.version))
         if not updated.rowcount:
-            raise HTTPException(409, "El brief cambió. Recargá sus opciones.")
+            raise HTTPException(409, "Los detalles cambiaron. Recargá las opciones.")
     if body.action != "confirm":
         return {"brief": get(project_id), "run": None}
     from .workspace import start_run
@@ -275,11 +303,11 @@ async def update_brief(project_id: str, body: UpdateBrief):
 def claim(project_id, brief_id):
     current = get(project_id)
     if not current or current["id"] != brief_id:
-        raise HTTPException(409, "No se encontró el brief confirmado.")
+        raise HTTPException(409, "No se encontraron los detalles confirmados.")
     with store.connection() as db:
         result = db.execute("UPDATE project_briefs SET status='generating',updated_at=? WHERE project_id=? AND id=? AND status='confirmed'", (store.now(), project_id, brief_id))
         if not result.rowcount:
-            raise HTTPException(409, "Ese brief no está listo para producir.")
+            raise HTTPException(409, "El pedido no está listo para producir.")
     return current
 
 
@@ -292,14 +320,14 @@ def finish(project_id, status):
 def reopen(project_id: str):
     current = get(project_id)
     if not current or current["status"] not in ("done", "cancelled"):
-        raise HTTPException(409, "Ese brief no se puede editar todavía.")
+        raise HTTPException(409, "El pedido no se puede editar todavía.")
     with store.connection() as db:
         db.execute("DELETE FROM brief_questions WHERE brief_id=?", (current["id"],))
         if db.execute("SELECT 1 FROM runs WHERE project_id=? AND status='running'", (project_id,)).fetchone():
             raise HTTPException(409, "Esperá a que termine el pedido actual.")
         updated = db.execute("UPDATE project_briefs SET status='draft',version=version+1,updated_at=? WHERE project_id=? AND id=? AND status IN ('done','cancelled')", (store.now(), project_id, current["id"]))
         if not updated.rowcount:
-            raise HTTPException(409, "El brief cambió. Volvé a cargarlo.")
+            raise HTTPException(409, "Los detalles cambiaron. Volvé a cargarlos.")
     return read_brief(project_id)
 
 
