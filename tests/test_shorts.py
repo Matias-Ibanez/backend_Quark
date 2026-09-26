@@ -6,7 +6,12 @@ import httpx
 import pytest
 from fastapi import HTTPException
 
-from backend import agent, shorts, store
+from backend import agent, shorts, store, brief
+
+
+@pytest.fixture(autouse=True)
+def production_tests_bypass_intake(monkeypatch):
+    monkeypatch.setattr(brief, "maybe_start", lambda *args: None)
 
 
 def test_topic_only_short_uses_mpt_and_imports_single_valid_mp4(monkeypatch, tmp_path):

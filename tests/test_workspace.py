@@ -68,7 +68,7 @@ def test_calendar_scheduler_claims_once_and_does_not_retry_uncertain(monkeypatch
 def test_run_persists_failure_and_context(monkeypatch):
     p = project()
     seen = []
-    async def fake_chat(project_id, message, function, assets, run_id=None):
+    async def fake_chat(project_id, message, function, assets, run_id=None, brief_id=None):
         seen.append((project_id, message, function, assets, run_id))
         raise ValueError("private implementation detail")
     monkeypatch.setattr(agent, "chat", fake_chat)

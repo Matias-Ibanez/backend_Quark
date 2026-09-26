@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel, Field
-from . import store, agent, instagram, workspace, costs, music
+from . import store, agent, instagram, workspace, costs, music, brief
 from .models import CreateProject, EditProject, Crop, Brand, Chat
 
 Image.MAX_IMAGE_PIXELS = 25_000_000
@@ -257,7 +257,7 @@ async def chat(project_id: str, body: Chat):
     if lock.locked():
         raise HTTPException(409, "El agente ya está trabajando en este proyecto")
     async with lock:
-        return await agent.chat(project_id, body.message, body.function, body.assetIds)
+        return await agent.chat(project_id, body.message, body.function, body.assetIds, brief_id=body.briefId)
 
 
 @app.get("/api/projects/{project_id}/download")
@@ -282,5 +282,6 @@ def download_project(project_id: str):
 app.include_router(instagram.router)
 app.include_router(workspace.router)
 app.include_router(music.router)
+app.include_router(brief.router)
 app.mount("/media/assets", StaticFiles(directory=store.DATA / "assets"), name="assets")
 app.mount("/media/exports", StaticFiles(directory=store.DATA / "exports"), name="exports")

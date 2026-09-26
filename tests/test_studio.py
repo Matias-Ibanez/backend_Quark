@@ -10,16 +10,19 @@ import time
 
 import pytest
 
-os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="quark-test-")
-os.environ.pop("DEEPSEEK_API_KEY", None)
-
 from fastapi.testclient import TestClient
 from PIL import Image
 from backend.app import app
-from backend import agent, costs, guardrails, store, instagram
+from backend import agent, costs, guardrails, store, instagram, brief
 from hermes.renderer.svg_artifact import InvalidSVG, finalize_svg
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def production_tests_bypass_intake(monkeypatch):
+    # These tests isolate rendering and public replies. test_brief covers the real intake gate.
+    monkeypatch.setattr(brief, "maybe_start", lambda *args: None)
 
 
 def project():

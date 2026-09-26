@@ -94,3 +94,4 @@ class Chat(Strict):
     message: str = Field(min_length=1, max_length=6000)
     function: Literal["content", "strategy", "calendar", "promo", "shorts"] = "content"
     assetIds: list[str] = Field(default_factory=list, max_length=5)
+    briefId: str | None = Field(default=None, max_length=40)

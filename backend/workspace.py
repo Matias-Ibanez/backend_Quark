@@ -16,13 +16,14 @@ tasks: set[asyncio.Task] = set()
 
 def recover_runs():
     with store.connection() as db:
+        db.execute("UPDATE project_briefs SET status='failed' WHERE status IN ('generating','confirmed')")
         db.execute("UPDATE runs SET status='failed',error='El servicio se reinició. Los cambios guardados se conservan.' WHERE status='running'")
         db.execute("UPDATE calendar SET status='needs_review',error='Envío interrumpido: verificá Instagram antes de reintentar.' WHERE status='publishing'")
 
 
 async def execute_run(run_id, project_id, body):
     try:
-        await agent.chat(project_id, body.message, body.function, body.assetIds, run_id=run_id)
+        await agent.chat(project_id, body.message, body.function, body.assetIds, run_id=run_id, brief_id=body.briefId)
         status, error = "done", None
     except asyncio.CancelledError:
         status, error = "failed", "El servicio se detuvo. Los cambios guardados se conservan."
