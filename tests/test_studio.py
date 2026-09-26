@@ -127,6 +127,29 @@ def test_video_without_mp4_is_failure_but_usage_is_counted(monkeypatch):
     assert row["status"] == "failed" and row["cost_usd"] is not None
 
 
+def test_educational_reel_is_in_scope_and_refusal_is_not_render_error(monkeypatch):
+    p = project()
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    assert "Un video, reel o publicación educativa" in agent.SYSTEM_PROMPT
+    assert asyncio.run(guardrails.route_request("Haceme un video sobre integrales", [])) is None
+
+    class Response:
+        status_code = 200
+        def json(self):
+            return {"choices": [{"message": {"content": "Ese video es contenido escolar; me dedico a marketing."}}], "usage": {}}
+
+    class FakeClient:
+        def __init__(self, **kwargs): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): pass
+        async def post(self, url, **kwargs): return Response()
+
+    monkeypatch.setattr(agent.httpx, "AsyncClient", FakeClient)
+    result = asyncio.run(agent.chat(p["id"], "Haceme un video sobre integrales"))
+    assert "contenido escolar" in result["message"]
+    assert "No pude terminar" not in result["message"]
+
+
 def test_partial_manim_scene_is_not_delivered_as_final_video(tmp_path, monkeypatch):
     folder = tmp_path / "project"
     rendered = folder / "media" / "videos" / "scene" / "1080p30" / "Story.mp4"
@@ -148,6 +171,24 @@ def test_partial_manim_scene_is_not_delivered_as_final_video(tmp_path, monkeypat
     assert agent.import_hermes_media(p["id"], folder, {}, require_audio=True) == []
     monkeypatch.setattr(agent, "video_duration", lambda path: 40)
     assert agent.import_hermes_media(p["id"], folder, {}, target_seconds=30) == []
+
+
+def test_complete_fresh_manim_scenes_can_be_assembled_in_script_order(tmp_path):
+    folder = tmp_path / "project"
+    clips = folder / "media" / "videos" / "script" / "320p24"
+    clips.mkdir(parents=True)
+    script = folder / "script.py"
+    script.write_text("from manim import Scene\nclass Opening(Scene): pass\nclass Closing(Scene): pass\n")
+    for name, color in (("Opening", "red"), ("Closing", "blue")):
+        subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i",
+                        f"color=c={color}:s=320x568:r=24:d=1.5", "-c:v", "libx264", "-y",
+                        str(clips / f"{name}.mp4")], check=True)
+    after = min(path.stat().st_mtime_ns for path in (script, *clips.glob("*.mp4"))) - 1
+    assert not agent.assemble_rendered_scenes(folder, after, target_seconds=20)
+    assert agent.assemble_rendered_scenes(folder, after, target_seconds=3)
+    assert 2.9 <= agent.video_duration(folder / "final.mp4") <= 3.2
+    (folder / "final.mp4").unlink()
+    assert not agent.assemble_rendered_scenes(folder, max(path.stat().st_mtime_ns for path in (script, *clips.glob("*.mp4"))) + 1)
 
 
 def test_teacher_can_revise_an_exported_educational_reel(monkeypatch):

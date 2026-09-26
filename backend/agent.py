@@ -1,4 +1,5 @@
 """QUARK's only agent path: Hermes with DeepSeek and native local tools."""
+import ast
 import json
 import logging
 import os
@@ -62,6 +63,66 @@ def video_has_audio(path):
                             "stream=index", "-of", "csv=p=0", str(path)],
                            capture_output=True, text=True, timeout=20)
     return check.returncode == 0 and bool(check.stdout.strip())
+
+
+def assemble_rendered_scenes(folder, after_ns, target_seconds=None, require_audio=False):
+    """Recover a complete, fresh Manim sequence when Hermes exhausts its turn budget."""
+    script = folder / "script.py"
+    if require_audio or not script.is_file() or script.stat().st_mtime_ns < after_ns:
+        return False
+    try:
+        tree = ast.parse(script.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError, UnicodeError):
+        return False
+    scene_names = [node.name for node in tree.body if isinstance(node, ast.ClassDef)
+                   and any(isinstance(base, ast.Name) and base.id in {"Scene", "MovingCameraScene", "ThreeDScene"}
+                           for base in node.bases)]
+    if not 2 <= len(scene_names) <= 12 or len(set(scene_names)) != len(scene_names):
+        return False
+    candidates = rendered_video_candidates(folder)
+    clips = []
+    for name in scene_names:
+        choices = [path for path in candidates if path.stem == name and path.stat().st_mtime_ns >= after_ns]
+        if not choices:
+            return False
+        clips.append(max(choices, key=lambda path: path.stat().st_mtime_ns))
+    specs = []
+    durations = []
+    for clip in clips:
+        probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                                "stream=codec_name,width,height,r_frame_rate", "-of", "json", str(clip)],
+                               capture_output=True, text=True, timeout=20)
+        try:
+            specs.append(json.loads(probe.stdout)["streams"][0] if probe.returncode == 0 else {})
+        except (KeyError, IndexError, ValueError):
+            return False
+        durations.append(video_duration(clip))
+    if (any(duration < 1 for duration in durations) or
+            not all(all(key in spec for key in ("codec_name", "width", "height", "r_frame_rate")) for spec in specs) or
+            any(spec != specs[0] for spec in specs[1:])):
+        return False
+    total = sum(durations)
+    if total > 600 or (target_seconds and not target_seconds * .85 <= total <= target_seconds * 1.2):
+        return False
+    listing = folder / "concat-scenes.txt"
+    temporary = folder / "final.assembling.mp4"
+    try:
+        listing.write_text("".join(f"file '{clip}'\n" for clip in clips), encoding="utf-8")
+        result = subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "concat",
+                                 "-safe", "0", "-i", str(listing), "-c", "copy", "-movflags", "+faststart",
+                                 str(temporary)], capture_output=True, text=True, timeout=180)
+        if result.returncode or not temporary.is_file() or abs(video_duration(temporary) - total) > 1:
+            log.warning("No se pudo unir la secuencia de escenas: %s", result.stderr[-500:])
+            return False
+        temporary.replace(folder / "final.mp4")
+        log.info("Se recuperó un video de %d escenas en el orden del script", len(clips))
+        return True
+    except (OSError, subprocess.TimeoutExpired):
+        log.exception("No se pudo recuperar el video de escenas")
+        return False
+    finally:
+        listing.unlink(missing_ok=True)
+        temporary.unlink(missing_ok=True)
 
 
 def import_hermes_media(project_id, folder, before, target_seconds=None, require_audio=False, preferred_kind=None, require_vector=False):
@@ -152,6 +213,7 @@ async def _hermes_chat(project_id, message, function, asset_ids, metrics):
     os.chown(folder, -1, 10000)
     folder.chmod(0o2770)
     before = {name: (p.stat().st_mtime_ns, p.stat().st_size) for name in ("final.mp4", "final.svg", "final.png") if (p := folder / name).is_file()}
+    render_started_ns = time.time_ns()
     previous_messages = store.messages(project_id)
     target_seconds = requested_video_seconds([*previous_messages, {"role": "user", "content": message}])
     require_audio = bool(re.search(r"\b(?:locuci[oó]n|narraci[oó]n|voz\s+en\s+off)\b", message, re.I))
@@ -200,19 +262,26 @@ Función elegida: {function}."""
     if result.get("usage", {}).get("total_tokens") == 0 and re.search(r"rate.limit|cooling down|insufficient balance|HTTP 40[129]", content, re.I):
         raise HTTPException(402, "El agente no está disponible en este momento. Contactá a soporte.")
     # A completed Manim scene is not a finished video; only export an explicit final.mp4.
+    final_video = folder / "final.mp4"
+    final_unchanged = final_video.is_file() and (final_video.stat().st_mtime_ns, final_video.stat().st_size) == before.get("final.mp4")
+    recovered = False
+    if wants_video and not require_audio and (not final_video.is_file() or final_unchanged):
+        recovered = assemble_rendered_scenes(folder, render_started_ns, target_seconds, require_audio)
     media = import_hermes_media(project_id, folder, before, target_seconds, require_audio, preferred_kind, require_vector=wants_image and not wants_video)
     metrics["media_kind"] = "video" if any(path.endswith(".mp4") for path in media) else "image" if any(path.endswith((".png", ".svg")) for path in media) else None
     metrics["media_count"] = len(media)
     wants_media = bool(re.search(r"\b(?:cre[aá]\w*|hac[eé]\w*|gener[aá]\w*|diseñ[aá]\w*|arm[aá]\w*|rehac\w*|mejor\w*)\b", message, re.I) and re.search(r"\b(?:post|publicaci[oó]n|imagen|diseño|video|vídeo|reel|pieza|banner|logo|flyer|svg)\b", message, re.I))
-    if not media and guardrails.is_clarifying_reply(content):
+    if not media and (guardrails.is_clarifying_reply(content) or guardrails.is_scope_refusal(content)):
         content = guardrails.public_reply(content, [])
         store.add_message(project_id, "assistant", content)
         return {"message": content, "media": [], "project": store.get_project(project_id)}
     if wants_video and not any(path.endswith(".mp4") for path in media):
+        log.warning("Video sin archivo final: project=%s exists=%s response=%r", project_id,
+                    (folder / "final.mp4").is_file(), content[:300])
         raise HTTPException(422, "No pude terminar el video. Probá con una descripción más breve o ajustá el pedido.")
     if (wants_media or wants_image) and not media:
         raise HTTPException(422, "No pude terminar la pieza. Probá con una descripción más breve o ajustá el pedido.")
-    content = guardrails.public_reply(content, media)
+    content = "Listo, preparé el video. Decime si querés ajustar el texto, el estilo o el movimiento." if recovered else guardrails.public_reply(content, media)
     if any(path.endswith(".mp4") for path in media):
         from . import music
         content = music.offer_after_video(project_id, content)

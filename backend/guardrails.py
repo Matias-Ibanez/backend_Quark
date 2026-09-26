@@ -101,6 +101,14 @@ def is_clarifying_reply(content):
     return content.strip().endswith("?") and len(content) < 800 and not PRIVATE_OUTPUT.search(content)
 
 
+def is_scope_refusal(content):
+    """Show a safe policy refusal instead of reporting a nonexistent render failure."""
+    normalized = normalize(content)
+    return any(phrase in normalized for phrase in (
+        "contenido escolar", "material escolar", "tarea escolar", "fuera de lo que puedo hacer",
+        "no armo videos educativos", "me dedico a marketing"))
+
+
 async def route_request(message, recent_messages, asset_ids=None):
     """Return a safe reply for non-marketing requests; None means proceed to Hermes."""
     reply = direct_reply(message)

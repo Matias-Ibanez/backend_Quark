@@ -2,7 +2,7 @@ model:
   provider: deepseek
   default: deepseek-flash
 agent:
-  max_turns: 30
+  max_turns: 40
 auxiliary:
   background_review:
     enabled: false

@@ -22,6 +22,8 @@ Use this skill whenever the user asks for a post, reel, ad, campaign visual, or 
 5. Save editable source (`source.svg` for a static piece or `script.py` for video), a short `plan.md`, and a final `final.mp4` or `final.svg` with `final.png` preview in the project directory. Keep the source so later turns can change the same piece.
 6. Render a draft, inspect frames using local tools, correct obvious clipping, weak contrast and timing, then produce the final file. A successful command alone is not visual QA.
 
+Create a complete `final.mp4` as soon as all planned video scenes render successfully, before optional refinements. Keep the editable scenes and review the first, middle and last frames; if you revise them, replace `final.mp4` with the validated revision. Reserve enough tool steps for the final export and its duration check. Scale formulas and headlines to a safe width of roughly 75% of the portrait frame before rendering so long text is not clipped.
+
 ## Video delivery gate
 
 - A Manim scene clip is a draft component, never a deliverable. Stitch every planned scene in narrative order into one `final.mp4` and verify its duration with `ffprobe`. For a roughly 30-second request, aim for 26–36 seconds; a 5- or 10-second scene is incomplete.
