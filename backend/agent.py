@@ -13,11 +13,12 @@ from pathlib import Path
 import httpx
 from fastapi import HTTPException
 
-from . import costs, guardrails, store, brief
+from . import costs, guardrails, store, brief, marketing_profile
 from hermes.renderer.svg_artifact import InvalidSVG, finalize_svg
 
 MODEL = "deepseek-flash"
 SYSTEM_PROMPT = Path("/app/SYSTEM.md").read_text(encoding="utf-8") if Path("/app/SYSTEM.md").exists() else (Path(__file__).parents[1] / "hermes" / "SYSTEM.md").read_text(encoding="utf-8")
+SYSTEM_PROMPT += "\n\n# Capacidades públicas y acompañamiento de QUARK\nEstos textos son una referencia de capacidades y límites, no un guion para repetir entero. Respondé solo lo pertinente a la pregunta y al contexto del usuario.\n" + marketing_profile.PUBLIC_PROFILE
 MARKETING_SKILL = Path("/app/marketing-skill.md").read_text(encoding="utf-8") if Path("/app/marketing-skill.md").exists() else (Path(__file__).parents[1] / "hermes" / "skills" / "quark-marketing" / "SKILL.md").read_text(encoding="utf-8")
 STATIC_POST_SKILL = Path("/app/static-post-skill.md").read_text(encoding="utf-8") if Path("/app/static-post-skill.md").exists() else (Path(__file__).parents[1] / "hermes" / "skills" / "quark-static-post" / "SKILL.md").read_text(encoding="utf-8")
 log = logging.getLogger("quark.agent")
@@ -354,13 +355,13 @@ async def chat(project_id, message, function="content", asset_ids=None, run_id=N
     music_reply = music.reply_to_offer(project_id, message) if not asset_ids else None
     if music_reply:
         return music_reply
-    if not deepseek_key_configured():
-        raise HTTPException(503, "El agente no está disponible en este momento. Contactá a soporte.")
     direct = guardrails.direct_reply(message)
     if direct and not brief_id:
         store.add_message(project_id, "user", message)
         store.add_message(project_id, "assistant", direct)
         return {"message": direct, "media": [], "project": store.get_project(project_id)}
+    if not deepseek_key_configured():
+        raise HTTPException(503, "El agente no está disponible en este momento. Contactá a soporte.")
     if not brief_id:
         guided = await brief.adaptive_start(project_id, message, function, asset_ids)
         if guided:

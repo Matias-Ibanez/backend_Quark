@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Literal
 from fastapi import APIRouter, HTTPException
 from pydantic import Field, AwareDatetime
-from . import store, agent, instagram
+from . import store, agent, instagram, guardrails
 from .models import Chat, Strict
 
 router = APIRouter()
@@ -36,7 +36,7 @@ async def execute_run(run_id, project_id, body):
 @router.post("/api/projects/{project_id}/runs", status_code=202)
 async def start_run(project_id: str, body: Chat):
     store.attach_assets(project_id, body.assetIds)
-    if not agent.deepseek_key_configured():
+    if not agent.deepseek_key_configured() and (body.briefId or not guardrails.direct_reply(body.message)):
         raise HTTPException(503, "El agente no está disponible en este momento. Contactá a soporte.")
     run_id = store.uid()
     try:

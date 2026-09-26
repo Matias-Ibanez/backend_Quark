@@ -53,3 +53,12 @@ La duración, el formato y la presencia de audio se verifican automáticamente. 
 - Modelo real: un pedido de imagen cuadrada editorial cálida sobre café no pidió campos; evaluación estimada USD 0.00030855. Un reel sobre café detectó solo duración en la prueba del evaluador. La prueba desde el chat detectó que los defaults podían confundirse con datos aportados; se aclaró el prompt y se agregó validación de duración no aportada ni delegada.
 - Reversión: revertir el cambio de brief adaptativo en backend y editor frontend; la tabla adicional brief_questions puede quedar sin uso sin borrar proyectos ni archivos.
 - Chat real tras la corrección: el pedido de reel mostró únicamente Duración del video, paso 1/2; al guardar pasó a revisar solo esa respuesta. Se canceló antes de producir. Captura local ignorada: `.tmp/brief-adaptativo.png`. El primer render de prueba anterior se interrumpió al desplegar la corrección.
+
+## 2026-09-26 — Identidad y acompañamiento de marketing
+
+- `docker compose run --rm --no-deps -v ./backend:/app/backend:ro -v ./tests:/app/tests:ro -v ./hermes/SYSTEM.md:/app/SYSTEM.md:ro -e DATA_DIR=/tmp/quark-tests -e PYTHONPATH=/app studio pytest -q tests`: 76 pruebas aprobadas, una advertencia de deprecación existente de Starlette.
+- Se verificaron identidad, capacidades, proceso, inicio, recursos visuales, fotos, textos, campañas, música, iteraciones, límites y expectativas de Instagram; los pedidos concretos o mixtos conservan su ruta de producción. Programación sigue fuera de alcance.
+- Las respuestas frecuentes no llaman al proveedor, crean briefs ni registran consumo de generación. Se probó la ruta de ejecución de chat sin credencial para una pregunta de capacidades.
+- Docker studio reconstruido y desplegado. Prueba HTTP real a través de localhost:8010: quién sos, qué puedes hacer, cómo empezamos e Instagram recibieron cuatro respuestas distintas, sin medios ni brief. Salud del stack: ok.
+- El perfil público se comparte entre respuestas inmediatas y el contexto del modelo. No se modificaron herramientas, exportaciones SVG/PNG ni frontend.
+- Reversión: revertir este cambio en marketing_profile, guardrails, agent, workspace y SYSTEM.md junto con sus pruebas/documentación; no requiere migraciones ni eliminar conversaciones.

@@ -38,6 +38,8 @@ En una PC de 16 GB, Hermes tiene un límite de 6 GB, MoneyPrinterTurbo de 4 GB y
 
 Antes de generar una pieza nueva, el agente evalúa lo que ya diste y el contexto del chat. Si falta información necesaria, abre un brief solo con las preguntas pendientes; si alcanza, produce directamente. Las elecciones quedan guardadas en esa conversación. [BRIEF.md](BRIEF.md) detalla las preguntas, validación y entrega de carruseles.
 
+QUARK también explica quién es, sus capacidades, el recorrido de trabajo y cómo empezar. Las preguntas frecuentes sobre el producto reciben orientación inmediata sin abrir un brief ni consumir tokens; la misma referencia de capacidades se incluye en el contexto del modelo. El acompañamiento se limita a marketing y comunicación de marca. No promete publicación o atención automática en Instagram desde el chat, fotografías nuevas ni resultados comerciales garantizados. Si una presentación viene acompañada de un pedido de producción, se conserva el pedido.
+
 Cloná [landing-quark](https://github.com/Matias-Ibanez/landing-quark) en otra carpeta. Con el backend ya iniciado, ejecutá allí:
 
 ```bash

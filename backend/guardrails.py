@@ -7,20 +7,15 @@ import unicodedata
 
 import httpx
 
-from . import costs
+from . import costs, marketing_profile
 
-IDENTITY_REPLY = "Soy QUARK, tu agente de marketing. Te ayudo a crear y mejorar contenido para tu marca."
+IDENTITY_REPLY = marketing_profile.IDENTITY
 OUT_OF_SCOPE_REPLY = "Puedo ayudarte con marketing, publicaciones, videos y contenido para tu marca. Contame qué querés comunicar y a quién."
 GREETING_REPLY = "¡Hola! Soy QUARK. Contame tu idea y la trabajamos juntos."
 ACK_REPLY = "¡Entendido! Me pongo con eso."
 CLARIFY_REPLY = "No me queda claro el pedido todavía. ¿Qué querés comunicar y para quién?"
 MEDIA_REPLY = "Listo, preparé la pieza para tu marca. Decime si querés ajustar el texto, el estilo o el movimiento."
 
-IDENTITY_PATTERN = re.compile(
-    r"\b(?:quien\s+(?:eres|sos)|que\s+(?:eres|sos)|como\s+te\s+llamas|presentate|"
-    r"que\s+(?:puedes|podes)\s+hacer|como\s+funcionas|que\s+modelo\s+usas|"
-    r"sobre\s+que\s+corres|que\s+herramientas\s+usas|quien\s+te\s+creo)\b"
-)
 PROGRAMMING_PATTERN = re.compile(
     r"\b(?:escrib|crea|haz|hace|genera|arma|programa|implementa|resolv|debug|corrig)\w*"
     r".{0,90}\b(?:codigo\s+(?:fuente|en\s+(?:python|javascript|java|html|css|sql))|"
@@ -64,10 +59,11 @@ def plain_text(value):
 
 def direct_reply(message):
     normalized = normalize(message)
-    if IDENTITY_PATTERN.search(normalized):
-        return IDENTITY_REPLY
     if PROGRAMMING_PATTERN.search(normalized):
         return OUT_OF_SCOPE_REPLY
+    profile_reply = marketing_profile.reply(normalized)
+    if profile_reply:
+        return profile_reply
     if GREETING_PATTERN.fullmatch(plain_text(message)):
         return GREETING_REPLY
     return None
