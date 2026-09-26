@@ -150,6 +150,32 @@ def test_educational_reel_is_in_scope_and_refusal_is_not_render_error(monkeypatc
     assert "No pude terminar" not in result["message"]
 
 
+def test_image_question_with_followup_sentence_is_shown_to_user(monkeypatch):
+    p = project()
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    assert "Para una publicación sobre un evento sin fecha" in agent.SYSTEM_PROMPT
+
+    class Response:
+        status_code = 200
+        def json(self):
+            return {"choices": [{"message": {"content": (
+                "Me falta un dato: ¿qué fecha y turno van en la mesa? "
+                "Si no los tenés, puedo hacer una versión general. Decime cuál preferís y avanzo.")}}],
+                "usage": {}}
+
+    class FakeClient:
+        def __init__(self, **kwargs): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): pass
+        async def post(self, url, **kwargs): return Response()
+
+    monkeypatch.setattr(agent.httpx, "AsyncClient", FakeClient)
+    result = asyncio.run(agent.chat(p["id"], "Me generas una imagen sobre mesas de finales? AM2 - Facultad UTN - FRT"))
+    assert "¿qué fecha y turno" in result["message"]
+    assert result["media"] == []
+    assert store.messages(p["id"])[-1]["role"] == "assistant"
+
+
 def test_partial_manim_scene_is_not_delivered_as_final_video(tmp_path, monkeypatch):
     folder = tmp_path / "project"
     rendered = folder / "media" / "videos" / "scene" / "1080p30" / "Story.mp4"

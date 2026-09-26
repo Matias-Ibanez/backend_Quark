@@ -98,7 +98,7 @@ def missing_brief_reply(message, recent_messages, asset_ids=None):
 
 def is_clarifying_reply(content):
     """A safe question from Hermes can be shown even when no media was produced."""
-    return content.strip().endswith("?") and len(content) < 800 and not PRIVATE_OUTPUT.search(content)
+    return bool(re.search(r"(?:¿[^?\n]{5,}\?|\b[^.!?\n]{5,}\?)", content)) and len(content) < 1200 and not PRIVATE_OUTPUT.search(content)
 
 
 def is_scope_refusal(content):

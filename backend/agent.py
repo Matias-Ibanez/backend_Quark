@@ -280,6 +280,8 @@ Función elegida: {function}."""
                     (folder / "final.mp4").is_file(), content[:300])
         raise HTTPException(422, "No pude terminar el video. Probá con una descripción más breve o ajustá el pedido.")
     if (wants_media or wants_image) and not media:
+        log.warning("Pieza sin archivo final: project=%s svg=%s png=%s response=%r", project_id,
+                    (folder / "final.svg").is_file(), (folder / "final.png").is_file(), content[:300])
         raise HTTPException(422, "No pude terminar la pieza. Probá con una descripción más breve o ajustá el pedido.")
     content = "Listo, preparé el video. Decime si querés ajustar el texto, el estilo o el movimiento." if recovered else guardrails.public_reply(content, media)
     if any(path.endswith(".mp4") for path in media):
