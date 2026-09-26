@@ -36,7 +36,7 @@ En una PC de 16 GB, Hermes tiene un límite de 6 GB, MoneyPrinterTurbo de 4 GB y
 
 ## Iniciar también la interfaz
 
-Antes de generar una pieza nueva, el chat abre un brief con opciones de formato, estilo, paleta, tipografía y contenido. Revisá sus pasos y confirmá para comenzar la producción. Las elecciones quedan guardadas en esa conversación. [BRIEF.md](BRIEF.md) detalla las preguntas, validación y entrega de carruseles.
+Antes de generar una pieza nueva, el agente evalúa lo que ya diste y el contexto del chat. Si falta información necesaria, abre un brief solo con las preguntas pendientes; si alcanza, produce directamente. Las elecciones quedan guardadas en esa conversación. [BRIEF.md](BRIEF.md) detalla las preguntas, validación y entrega de carruseles.
 
 Cloná [landing-quark](https://github.com/Matias-Ibanez/landing-quark) en otra carpeta. Con el backend ya iniciado, ejecutá allí:
 

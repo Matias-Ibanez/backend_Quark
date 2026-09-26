@@ -362,7 +362,7 @@ async def chat(project_id, message, function="content", asset_ids=None, run_id=N
         store.add_message(project_id, "assistant", direct)
         return {"message": direct, "media": [], "project": store.get_project(project_id)}
     if not brief_id:
-        guided = brief.maybe_start(project_id, message, function, asset_ids)
+        guided = await brief.adaptive_start(project_id, message, function, asset_ids)
         if guided:
             return guided
     else:
@@ -371,7 +371,8 @@ async def chat(project_id, message, function="content", asset_ids=None, run_id=N
     from . import shorts
     creative_brief = brief.production_context(project_id, message)
     short_request = shorts.is_short_request(message, function) and (not creative_brief or (creative_brief["medium"] == "video" and creative_brief["aspect"] == "story" and creative_brief["narration"] == "voice" and all(creative_brief[key] == "auto" for key in ("style", "palette", "typography"))))
-    safe_reply = None if brief_id else ((guardrails.direct_reply(message) or guardrails.missing_brief_reply(message, store.messages(project_id), asset_ids))
+    producing_brief = brief_id or (creative_brief and brief.get(project_id)["status"] == "generating")
+    safe_reply = None if producing_brief else ((guardrails.direct_reply(message) or guardrails.missing_brief_reply(message, store.messages(project_id), asset_ids))
                   if short_request else await guardrails.route_request(message, store.messages(project_id), asset_ids))
     if safe_reply:
         store.add_message(project_id, "user", message)
@@ -383,12 +384,12 @@ async def chat(project_id, message, function="content", asset_ids=None, run_id=N
     try:
         result = await (shorts.create_short(project_id, message, function, asset_ids, metrics) if short_request
                       else _hermes_chat(project_id, message, function, asset_ids, metrics))
-        if brief_id:
+        if producing_brief:
             brief.finish(project_id, "done" if result.get("media") else "draft")
         return result
     except Exception:
         status = "failed"
-        if brief_id:
+        if producing_brief:
             brief.finish(project_id, "failed")
         raise
     finally:

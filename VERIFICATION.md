@@ -45,3 +45,11 @@ La duración, el formato y la presencia de audio se verifican automáticamente. 
 - En el navegador se envió «Creame una imagen», se completaron los cuatro grupos de opciones y se revisó el resumen antes de confirmar. El tema fue café de especialidad; las elecciones fueron carrusel de tres láminas 1:1, estilo editorial, paleta cálida, serif, tono didáctico y sin fotografías.
 - La generación real entregó tres SVG con sus PNG de **1080 × 1080**, conservando la secuencia en el chat. Las tres vistas se inspeccionaron sin cortes de texto y con la dirección visual elegida. La producción tardó **115,9 segundos**, con un costo estimado del proveedor de **USD 0,01743** por el carrusel; CPU y almacenamiento no están incluidos.
 - El cambio se puede revertir con sus commits de backend y frontend sin eliminar conversaciones ni exportaciones: la tabla de briefs adicional puede quedar sin uso.
+
+## 2026-09-26 — Brief adaptativo
+
+- Backend: 46 pruebas aprobadas; incluye generación directa para pedidos completos, preguntas persistidas limitadas a los datos faltantes, campos dependientes visibles, JSON inválido y duración pendiente.
+- Frontend: TypeScript, ESLint del editor y build Docker de Next.js aprobados. Los pasos sin preguntas se omiten.
+- Modelo real: un pedido de imagen cuadrada editorial cálida sobre café no pidió campos; evaluación estimada USD 0.00030855. Un reel sobre café detectó solo duración en la prueba del evaluador. La prueba desde el chat detectó que los defaults podían confundirse con datos aportados; se aclaró el prompt y se agregó validación de duración no aportada ni delegada.
+- Reversión: revertir el cambio de brief adaptativo en backend y editor frontend; la tabla adicional brief_questions puede quedar sin uso sin borrar proyectos ni archivos.
+- Chat real tras la corrección: el pedido de reel mostró únicamente Duración del video, paso 1/2; al guardar pasó a revisar solo esa respuesta. Se canceló antes de producir. Captura local ignorada: `.tmp/brief-adaptativo.png`. El primer render de prueba anterior se interrumpió al desplegar la corrección.

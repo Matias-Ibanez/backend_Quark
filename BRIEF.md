@@ -1,17 +1,21 @@
 # Crear una pieza con un brief confirmado
 
-Un pedido como «creame una imagen» abre preguntas en el chat antes de consumir tokens del modelo o renderizar. Las elecciones se guardan por conversación, se recuperan al recargar y llegan al agente como contexto estructurado.
+El agente evalúa el pedido y los últimos mensajes de la conversación antes de producir una pieza nueva. El brief aparece únicamente si faltan decisiones necesarias, y muestra solo esas preguntas. Si el pedido alcanza, la producción empieza directamente. Las elecciones se guardan por conversación y llegan al agente como contexto estructurado.
 
 ## Recorrido
 
-1. Escribí el pedido. El tema se conserva si ya lo diste; un pedido sin tema exige completarlo.
+1. Escribí el pedido. Se extraen tema, público, objetivo, formato y preferencias que ya diste; no se vuelven a preguntar por rutina.
 2. Completá **Contenido y público**: tema, audiencia y objetivo (informar, vender, explicar o generar interacción).
 3. Elegí **Formato y destino**: imagen, video o carrusel; Instagram, TikTok, YouTube, LinkedIn o web; 4:5, 9:16, 1:1 o 16:9. Video admite 5–180 segundos; carrusel, 2–10 láminas.
 4. Definí **Identidad visual**: editorial, producto, tipográfica, minimalista o impactante; paleta de marca, neutra, cálida, fría, de contraste o propia; tipografía sans, serif, display o de marca. Podés delegar estas decisiones. Elegí también el tono y si usar los adjuntos.
 5. Definí **Texto y revisión**: redacción automática o texto exacto, llamada a la acción, hechos confirmados y restricciones. Para video elegí voz y si vas a agregar música después.
 6. Revisá el resumen y pulsá **Confirmar y crear**. Para cambiar opciones después, usá **Modificar formato o estilo de esta pieza**.
 
-Cada «Guardar y continuar» persiste las respuestas. Los cambios de un paso todavía no guardado no sobreviven a una recarga. Cancelar no genera contenido. Las revisiones por chat conservan el contexto; pedir otra pieza abre un nuevo brief.
+Los pasos 2–5 enumeran las opciones disponibles; solo aparecen los campos que el agente considera pendientes. Por ejemplo, «creame una imagen» sin contexto pregunta tema y formato; «creá un reel sobre café» puede preguntar solo duración; una imagen cuadrada con tema y dirección visual puede pasar directamente a producción. Paleta y tipografía pueden decidirse automáticamente. Pedir los colores de una marca sin aportarlos requiere aclararlos. La evaluación depende del modelo y puede equivocarse; se puede cancelar o corregir por chat.
+
+Cada «Guardar y continuar» persiste las respuestas. Los cambios de un paso todavía no guardado no sobreviven a una recarga. Cancelar no genera contenido. Las revisiones por chat conservan el contexto; pedir otra pieza vuelve a evaluar qué falta. El botón para modificar una pieza manualmente conserva el editor completo.
+
+La evaluación estructurada usa DeepSeek sin herramientas y registra tokens y costo en `aux_usage`, con origen `creative_intake`. Un pedido mínimo sin tema ni historial abre las preguntas básicas sin llamar al modelo. Ante un fallo o JSON inválido se muestran tema y formato como respaldo; no se produce a partir de una evaluación inválida.
 
 ## Validación y entrega
 

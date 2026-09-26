@@ -9,6 +9,15 @@ from backend import agent, brief, store, workspace
 from backend.models import Chat
 
 client = TestClient(app)
+real_assess = brief.assess
+
+
+@pytest.fixture(autouse=True)
+def predictable_intake(monkeypatch):
+    async def plan(pid, message, function, seeded):
+        return brief.Intake(answers=brief.Answers.model_validate(seeded), missing=["subject", "aspect"])
+    monkeypatch.setattr(brief, "assess", plan)
+
 
 
 def start(monkeypatch, message="Creame una imagen"):
@@ -139,3 +148,63 @@ def test_production_prompt_includes_confirmed_format_and_assets_policy(monkeypat
     monkeypatch.setattr(agent.httpx, "AsyncClient", FakeClient)
     result = asyncio.run(agent.chat(project_id, "Creame una imagen", brief_id=saved["id"]))
     assert len(result["media"]) == 1 and brief.get(project_id)["status"] == "done"
+
+
+def test_complete_request_goes_straight_to_generation(monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test")
+    project = store.create_project("Completo")
+    async def plan(pid, message, function, seeded):
+        return brief.Intake(answers=brief.Answers(subject="Café", aspect="square", palette="warm"), missing=[])
+    async def render(pid, message, function, assets, metrics):
+        assert brief.production_context(pid)["palette"] == "warm"
+        return {"message": "Lista", "media": ["/media/exports/mock.svg"]}
+    monkeypatch.setattr(brief, "assess", plan)
+    monkeypatch.setattr(agent, "_hermes_chat", render)
+    result = asyncio.run(agent.chat(project["id"], "Creá una imagen cuadrada sobre café, cálida, elegí el resto"))
+    assert result["media"] and brief.get(project["id"])["status"] == "done"
+    assert not any("Antes de crear" in x["content"] for x in store.messages(project["id"]))
+
+
+def test_only_missing_fields_are_exposed_and_survive_reload(monkeypatch):
+    async def plan(pid, message, function, seeded):
+        return brief.Intake(answers=brief.Answers(subject="Café", medium="video", aspect="story"), missing=["seconds"])
+    monkeypatch.setattr(brief, "assess", plan)
+    pid, saved = start(monkeypatch, "Creá un reel sobre café")
+    response = client.get(f"/api/projects/{pid}/brief").json()
+    assert [f["key"] for f in response["fields"]] == ["seconds"]
+    assert response["brief"]["answers"]["subject"] == "Café"
+    assert brief.get(pid)["id"] == saved["id"]
+
+
+def test_brand_color_question_is_visible_without_palette_question(monkeypatch):
+    async def plan(pid, message, function, seeded):
+        return brief.Intake(answers=brief.Answers(subject="Café", palette="brand"), missing=["colors"])
+    monkeypatch.setattr(brief, "assess", plan)
+    pid, _ = start(monkeypatch, "Creá una imagen sobre café con los colores de mi marca")
+    fields = client.get(f"/api/projects/{pid}/brief").json()["fields"]
+    assert len(fields) == 1 and fields[0]["key"] == "colors" and "when" not in fields[0]
+
+
+@pytest.mark.parametrize("invalid", [False, True])
+def test_structured_intake_validates_model_and_missing_duration(monkeypatch, invalid):
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test")
+    project = store.create_project("Evaluación")
+    class Response:
+        def raise_for_status(self): pass
+        def json(self):
+            return {"usage": {"prompt_tokens": 100, "completion_tokens": 40}, "choices": [{"message": {"content": json.dumps({
+                "answers": brief.Answers(subject="Café", medium="video", aspect="story").model_dump(),
+                "missing": ["system_prompt"] if invalid else []})}}]}
+    class Client:
+        def __init__(self, **kwargs): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): pass
+        async def post(self, url, **kwargs):
+            assert kwargs["json"]["response_format"] == {"type": "json_object"}
+            return Response()
+    monkeypatch.setattr(brief.httpx, "AsyncClient", Client)
+    decision = asyncio.run(real_assess(project["id"], "Creá un reel sobre café", "content", brief.Answers(subject="Café", medium="video").model_dump()))
+    assert decision.missing == (["subject", "aspect"] if invalid else ["seconds"])
+    with store.connection() as db:
+        row = db.execute("SELECT * FROM aux_usage WHERE source='creative_intake' ORDER BY rowid DESC LIMIT 1").fetchone()
+    assert row["status"] == ("failed" if invalid else "done") and row["input_tokens"] == 100

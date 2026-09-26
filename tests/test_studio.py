@@ -22,7 +22,8 @@ client = TestClient(app)
 @pytest.fixture(autouse=True)
 def production_tests_bypass_intake(monkeypatch):
     # These tests isolate rendering and public replies. test_brief covers the real intake gate.
-    monkeypatch.setattr(brief, "maybe_start", lambda *args: None)
+    async def bypass(*args): return None
+    monkeypatch.setattr(brief, "adaptive_start", bypass)
 
 
 def project():
