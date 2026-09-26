@@ -134,7 +134,7 @@ def maybe_start(project_id, message, function, asset_ids, *, quiet=False):
                 answers.model_dump_json(), store.now()))
         reply = "Antes de crear, definamos el contenido, el formato y el estilo. Elegí las opciones del brief; donde prefieras, podés dejar que yo elija. Revisá el resumen y confirmá cuando esté listo."
     if not quiet:
-        store.add_message(project_id, "user", message)
+        store.add_user_message(project_id, message, asset_ids)
         store.add_message(project_id, "assistant", reply)
     return {"message": reply, "media": [], "project": store.get_project(project_id)}
 
@@ -206,7 +206,7 @@ async def adaptive_start(project_id, message, function, asset_ids):
         return None
     current = get(project_id)
     if previous and previous["id"] == current["id"]:
-        store.add_message(project_id, "user", message)
+        store.add_user_message(project_id, message, asset_ids)
         store.add_message(project_id, "assistant", result["message"])
         return result
     decision = await assess(project_id, message, function, current["answers"])
@@ -217,7 +217,7 @@ async def adaptive_start(project_id, message, function, asset_ids):
     if not decision.missing:
         return None
     result["message"] = "¡Entendido! Antes de crear, necesito aclarar estas decisiones. El resto lo tomaré de tu pedido y elegiré los detalles que dejaste a mi criterio."
-    store.add_message(project_id, "user", message)
+    store.add_user_message(project_id, message, asset_ids)
     store.add_message(project_id, "assistant", result["message"])
     return result
 

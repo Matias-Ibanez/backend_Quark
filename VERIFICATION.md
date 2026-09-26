@@ -62,3 +62,9 @@ La duración, el formato y la presencia de audio se verifican automáticamente. 
 - Docker studio reconstruido y desplegado. Prueba HTTP real a través de localhost:8010: quién sos, qué puedes hacer, cómo empezamos e Instagram recibieron cuatro respuestas distintas, sin medios ni brief. Salud del stack: ok.
 - El perfil público se comparte entre respuestas inmediatas y el contexto del modelo. No se modificaron herramientas, exportaciones SVG/PNG ni frontend.
 - Reversión: revertir este cambio en marketing_profile, guardrails, agent, workspace y SYSTEM.md junto con sus pruebas/documentación; no requiere migraciones ni eliminar conversaciones.
+
+## 2026-09-26 — Adjuntos dentro del mensaje
+
+- Backend: 78 pruebas aprobadas. Las imágenes enviadas se guardan como referencias de medios del mensaje del usuario, no solo como recursos globales del proyecto. Se verificó devolución por historial, descarga de la imagen y conservación después de inicializar la base.
+- Producción, respuestas directas y brief usan el mismo guardado del turno con sus adjuntos. La API y la tabla messages mantienen el contrato existente, sin migraciones.
+- Reversión: revertir add_user_message y sus llamadas/tests; los mensajes existentes y archivos siguen almacenados. El frontend anterior puede ignorar esos medios sin romper la conversación.

@@ -188,6 +188,12 @@ def add_message(project_id, role, content, media=None):
                    (uid(), project_id, role, content, now(), json.dumps(media or [])))
 
 
+def add_user_message(project_id, content, asset_ids=None):
+    """Keep the submitted resources on their own turn, not only on the project."""
+    media = ["/media/assets/" + get_asset(asset_id)["filename"] for asset_id in dict.fromkeys(asset_ids or [])]
+    add_message(project_id, "user", content, media=media)
+
+
 def messages(project_id):
     with connection() as db:
         rows = [dict(row) for row in db.execute("SELECT * FROM messages WHERE project_id=? ORDER BY created_at", (project_id,))]

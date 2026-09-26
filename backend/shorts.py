@@ -49,7 +49,7 @@ async def create_short(project_id, message, function, asset_ids, metrics):
     if len(subject) < 3 or len(subject) > 300:
         raise HTTPException(422, "Escribí un tema de entre 3 y 300 caracteres para el short.")
     store.attach_assets(project_id, asset_ids or [])
-    store.add_message(project_id, "user", message)
+    store.add_user_message(project_id, message, asset_ids)
     store.add_message(project_id, "assistant", "Entendido, estoy preparando tu short.")
     before_balance = await deepseek_usd_balance()
     base = os.getenv("SHORTS_BASE_URL", "http://shorts:8080").rstrip("/")
