@@ -38,13 +38,13 @@ def is_short_request(message, function):
 def should_use_clips(creative_brief, message, function):
     if creative_brief:
         mode = creative_brief.get("video_mode", "auto")
-        if creative_brief["medium"] != "video" or mode in ("animation", "assets"):
+        if creative_brief["medium"] != "video" or mode in ("animation", "motion", "assets"):
             return False
         if mode == "clips":
             return True
         # Preserve pre-existing productions which did not have the style question.
         return is_short_request(message, function) and creative_brief["aspect"] == "story" and creative_brief["narration"] == "voice" and all(creative_brief[key] == "auto" for key in ("style", "palette", "typography"))
-    return is_short_request(message, function) and brief.video_direction(message) not in ("animation", "assets")
+    return is_short_request(message, function) and brief.video_direction(message) not in ("animation", "motion", "assets")
 
 
 def topic(message, function):

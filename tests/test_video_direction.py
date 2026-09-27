@@ -17,18 +17,19 @@ def prepare(monkeypatch, message, *, guessed_mode="clips"):
     return pid, asyncio.run(agent.chat(pid, message))
 
 
-def test_ambiguous_cafe_short_asks_visual_direction_even_if_model_guesses_clips(monkeypatch):
-    pid, result = prepare(monkeypatch, "Haceme un short de 20 segundos sobre por qué somos una buena cafetería")
+@pytest.mark.parametrize("message", ["Haceme un short de 20 segundos sobre por qué somos una buena cafetería", "Creá un reel animado de 20 segundos sobre café"])
+def test_ambiguous_cafe_short_asks_visual_direction_even_if_model_guesses_clips(monkeypatch, message):
+    pid, result = prepare(monkeypatch, message)
     state = brief.read_brief(pid)
     assert state["question"] == "video_mode"
-    assert {key for key, _ in state["fields"][0]["choices"]} == {"clips", "animation"}
+    assert {key for key, _ in state["fields"][0]["choices"]} == {"clips", "animation", "motion"}
     assert "moneyprinter" not in json.dumps(state).lower() and "manim" not in json.dumps(state).lower()
     assert not result["media"] and not brief.production_context(pid)
     with store.connection() as db:
         assert db.execute("SELECT COUNT(*) FROM agent_usage WHERE project_id=?", (pid,)).fetchone()[0] == 0
 
 
-@pytest.mark.parametrize("answer, mode, engine", [("clips", "clips", "clips"), ("animaciones", "animation", "hermes")])
+@pytest.mark.parametrize("answer, mode, engine", [("clips", "clips", "clips"), ("animaciones", "animation", "hermes"), ("Diseño animado", "motion", "hermes"), ("motion graphics", "motion", "hermes")])
 def test_inline_choice_persists_and_controls_renderer_on_confirmation(monkeypatch, answer, mode, engine):
     pid, _ = prepare(monkeypatch, "Haceme un short de 20 segundos sobre café")
     saved = brief.get(pid)
@@ -97,6 +98,31 @@ def test_user_assets_are_offered_only_when_attached_and_cannot_be_faked(monkeypa
 def test_negative_clips_request_does_not_infer_stock():
     assert brief.video_direction("Un short sin clips") is None
     assert brief.video_direction("Un short con los clips de stock") == "clips"
+
+
+@pytest.mark.parametrize("message,mode", [
+    ("Un reel con motion graphics", "motion"),
+    ("Un short con textos animados", "motion"),
+    ("Video con Remotion", "motion"),
+    ("Un video con mis fotos y textos animados", "assets"),
+    ("Un video con Manim sobre una fórmula", "animation"),
+    ("Un short sin motion graphics", None),
+    ("Un reel animado sobre café", None),
+    ("Una publicidad animada para mi cafetería", "motion"),
+])
+def test_motion_direction_is_explicit_and_cannot_become_stock(message, mode):
+    assert brief.video_direction(message) == mode
+    if mode in ("motion", "assets", "animation"):
+        assert not shorts.should_use_clips(None, message, "shorts")
+        assert not shorts.should_use_clips({"medium": "video", "video_mode": mode}, message, "shorts")
+
+
+def test_revision_can_switch_to_motion_without_reasking(monkeypatch):
+    pid, _ = prepare(monkeypatch, "Haceme un short de 20 segundos sobre café")
+    with store.connection() as db:
+        db.execute("UPDATE project_briefs SET status='done' WHERE project_id=?", (pid,))
+    assert brief.production_context(pid, "Rehacelo con textos animados")["video_mode"] == "motion"
+    assert brief.production_context(pid, "Cambiá el color a verde")["video_mode"] == "motion"
 
 
 @pytest.mark.parametrize("message,aspect", [("Haceme un short de 20 segundos sobre café", "story"), ("Haceme un short cuadrado de 20 segundos sobre café", "square"), ("Haceme un short 4:5 de 20 segundos sobre café", "portrait")])

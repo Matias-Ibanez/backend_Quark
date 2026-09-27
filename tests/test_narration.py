@@ -14,7 +14,7 @@ def test_shared_guide_fits_moneyprinter_prompt_limit(seconds):
     assert (f"{seconds * 2} palabras" if seconds else "50 a 80 palabras") in prompt
 
 
-@pytest.mark.parametrize("medium,voice,video_mode", [("image", "none", "auto"), ("video", "none", "animation"), ("video", "voice", "animation"), ("video", "none", "assets"), ("video", "voice", "assets")])
+@pytest.mark.parametrize("medium,voice,video_mode", [("image", "none", "auto"), ("video", "none", "animation"), ("video", "voice", "animation"), ("video", "none", "assets"), ("video", "voice", "assets"), ("video", "none", "motion"), ("video", "voice", "motion")])
 def test_hermes_receives_narration_skill_only_for_spoken_video(monkeypatch, medium, voice, video_mode):
     store.init_db()
     project = store.create_project("Guion de café")
@@ -48,10 +48,14 @@ def test_hermes_receives_narration_skill_only_for_spoken_video(monkeypatch, medi
     monkeypatch.setattr(agent, "assemble_rendered_scenes", lambda *args: False)
     asyncio.run(agent._hermes_chat(pid, "Creá mi pieza", "content", [], {}))
     assert (narration.SKILL in submitted[0]) == (medium == "video" and voice == "voice")
-    assert ("# Producción de animaciones en este proyecto" in submitted[0]) == (medium == "video")
-    if medium == "video":
+    assert ("# Producción de animaciones en este proyecto" in submitted[0]) == (medium == "video" and video_mode == "animation")
+    assert ("# Producción de diseño animado en este proyecto" in submitted[0]) == (medium == "video" and video_mode in ("motion", "assets"))
+    if medium == "video" and video_mode == "animation":
         assert "cargá manimce-best-practices con tu herramienta de skills" in submitted[0]
         assert "Cairo por CPU, sin -p ni OpenGL" in submitted[0]
-        if video_mode == "assets":
-            assert "usá los originales aportados como protagonistas" in submitted[0]
+    if video_mode in ("motion", "assets"):
+        assert "Cargá remotion-best-practices con tu herramienta de skills" in submitted[0]
+        assert "render-video.mjs" in submitted[0]
+    if video_mode == "assets":
+        assert "usá los originales aportados como protagonistas" in submitted[0]
     assert '"copy_text": "Tu pausa, tu café."' in submitted[0] and '"facts": "Molemos al pedir"' in submitted[0]

@@ -90,3 +90,12 @@ Comprobá la sintaxis y recargá Nginx con `nginx -t` y el método habitual de t
 Desde cada repositorio, `docker compose up -d --build` actualiza su servicio; `docker compose logs -f` muestra los errores. En el backend, `docker compose stop` detiene `studio`, Hermes y MoneyPrinterTurbo sin borrar los datos. Respaldá `studio-data`, `hermes-data` y `shorts-data` antes de migrar o actualizar. No uses `docker compose down -v`: elimina proyectos, medios y sesiones. Evitá `docker compose down` en el backend mientras el frontend siga conectado a `quark-shared`.
 
 `/api/costs` registra estimaciones por tokens y, para shorts, un delta aproximado del saldo DeepSeek cuando está disponible. `/api/deepseek/balance` devuelve el saldo actual; pueden diferir por demora de facturación, llamadas simultáneas y redondeos. Instagram sigue opcional y requiere credenciales propias.
+
+
+## Motion graphics
+
+Remotion se instala en la imagen de Hermes, con sus dependencias y Chrome Headless Shell; su skill oficial adaptada se monta desde `hermes/skills/remotion-best-practices`. Actualizar con `git pull` y `docker compose up -d --build`. No necesita otro servicio, puerto ni API key. La descarga de Chrome ocurre durante el build; el render no instala paquetes por proyecto.
+
+En el chat, elegir **Diseño animado** o pedir un reel con textos animados. **Con mis fotos** usa el mismo motor con los originales adjuntos. **Explicación visual** usa Manim Community; **Escenas reales** usa MoneyPrinterTurbo y requiere Pexels. Las revisiones conservan su dirección hasta que el usuario pida otra.
+
+`QUARK_REMOTION_CONCURRENCY=2` en `.env` controla cuántos fotogramas se renderizan a la vez (1–4). Hermes conserva el techo de 6 GB y 4 CPU; no hay reserva de memoria ni garantía de acelerar al aumentar la concurrencia. Un solo render Remotion puede ejecutarse a la vez por contenedor. En el i3 evitá producir simultáneamente con MoneyPrinterTurbo. La voz opcional usa Edge TTS con acceso a Internet, sin otra clave; la música seleccionada se mezcla desde la API después del render. Revisar [la licencia fijada de Remotion](hermes/renderer/REMOTION-LICENSE.md) para un despliegue comercial fuera de las condiciones gratuitas.

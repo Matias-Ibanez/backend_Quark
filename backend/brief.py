@@ -13,6 +13,9 @@ from .models import Strict, Chat
 
 router = APIRouter()
 DIMENSIONS = {"square": (1080, 1080), "portrait": (1080, 1350), "story": (1080, 1920), "landscape": (1920, 1080)}
+NAMED_COLORS = {"crema": "#F6EDDF", "bordo": "#542334", "blanco": "#FFFFFF", "negro": "#000000",
+                "rojo": "#CC3333", "azul": "#2563EB", "verde": "#287A50", "amarillo": "#FACC15",
+                "naranja": "#F97316", "rosa": "#EC4899", "violeta": "#7C3AED", "gris": "#808080"}
 
 
 class Answers(Strict):
@@ -20,12 +23,12 @@ class Answers(Strict):
     audience: str = Field(default="Personas interesadas en el tema", max_length=500)
     objective: Literal["inform", "sell", "educate", "engage"] = "inform"
     medium: Literal["image", "video", "carousel"] = "image"
-    video_mode: Literal["auto", "clips", "animation", "assets"] = "auto"
+    video_mode: Literal["auto", "clips", "animation", "motion", "assets"] = "auto"
     platform: Literal["instagram", "tiktok", "youtube", "linkedin", "web"] = "instagram"
     aspect: Literal["square", "portrait", "story", "landscape"] = "portrait"
     style: Literal["editorial", "product", "typographic", "minimal", "bold", "auto"] = "auto"
     palette: Literal["brand", "neutral", "warm", "cool", "contrast", "custom", "auto"] = "auto"
-    colors: str = Field(default="", max_length=100)
+    colors: str = Field(default="", max_length=100, description="For a custom palette, 1–5 #RRGGBB colors separated by commas. Translate requested color names into HEX; never put prose here.")
     typography: Literal["sans", "serif", "display", "brand", "auto"] = "auto"
     font: str = Field(default="", max_length=100)
     tone: Literal["friendly", "formal", "energetic", "educational"] = "friendly"
@@ -42,6 +45,10 @@ class Answers(Strict):
 
     @model_validator(mode="after")
     def conditional_values(self):
+        if self.palette == "custom" and self.colors.strip():
+            names = re.split(r"\s*(?:,|\by\b)\s*", guardrails.normalize(self.colors))
+            if 1 <= len(names) <= 5 and all(name in NAMED_COLORS for name in names):
+                self.colors = ", ".join(NAMED_COLORS[name] for name in names)
         if self.palette == "custom" and self.colors.strip() and not re.fullmatch(r"\s*#[0-9a-fA-F]{6}(?:\s*,\s*#[0-9a-fA-F]{6}){0,4}\s*", self.colors):
             raise ValueError("Ingresá entre uno y cinco colores HEX separados por comas, por ejemplo #112233, #FFAA00.")
         return self
@@ -70,7 +77,7 @@ FIELDS = [
     field("audience", "¿A quién va dirigido?", 0, required=True, maxLength=500),
     field("objective", "¿Qué querés lograr?", 0, [["inform", "Informar"], ["sell", "Vender"], ["educate", "Explicar un tema"], ["engage", "Generar interacción"]]),
     field("medium", "¿Qué vamos a crear?", 1, [["image", "Imagen"], ["video", "Video"], ["carousel", "Carrusel"]]),
-    field("video_mode", "¿Cómo te gustaría contar la idea?", 1, [["clips", "Clips reales de referencia · voz y subtítulos"], ["animation", "Animaciones · gráficos, texto y explicaciones"], ["assets", "Con mis fotos · mostrar mi marca"]], when=["medium", "video"]),
+    field("video_mode", "¿Cómo te gustaría contar la idea?", 1, [["clips", "Escenas reales · voz y subtítulos"], ["motion", "Diseño animado · textos y transiciones"], ["animation", "Explicación visual · gráficos y demostraciones"], ["assets", "Con mis fotos · mostrar mi marca"]], when=["medium", "video"]),
     field("platform", "¿Dónde lo vas a usar?", 1, [["instagram", "Instagram"], ["tiktok", "TikTok"], ["youtube", "YouTube"], ["linkedin", "LinkedIn"], ["web", "Web o presentación"]]),
     field("aspect", "¿Qué formato preferís?", 1, [["portrait", "Vertical · 4:5"], ["story", "Historia / reel · 9:16"], ["square", "Cuadrado · 1:1"], ["landscape", "Horizontal · 16:9"]]),
     field("seconds", "Duración del video en segundos", 1, type="number", min=5, max=180, when=["medium", "video"]),
@@ -172,7 +179,8 @@ def video_direction(message):
     text = guardrails.normalize(message)
     patterns = {
         "assets": r"\b(?:mis|nuestras?|nuestros?|estas?|estos?) (?:fotos|fotografias|videos|clips)\b|\b(?:fotos|videos) (?:adjunt\w*|de mi (?:local|negocio|producto))\b",
-        "animation": r"\b(?:animad\w*|animacion\w*|graficos?|diagramas?|ilustracion\w*|formulas?|ecuacion\w*|manim|demostracion matematica)\b",
+        "motion": r"\b(?:remotion|motion graphics|motion design|diseno animado|tipografia animada|(?:textos?|titulos?|logos?) animados?|(?:publicidad|anuncio) animad[ao]|animacion(?:es)? (?:de )?(?:logos?|marca|productos?|textos?))\b",
+        "animation": r"\b(?:graficos?|diagramas?|ilustracion\w*|formulas?|ecuacion\w*|manim|demostracion matematica)\b",
         "clips": r"\b(?:clips|b[ -]roll|filmaciones|escenas reales|imagenes reales|stock|moneyprinterturbo)\b",
     }
     for mode, pattern in patterns.items():
@@ -206,11 +214,12 @@ async def assess(project_id, message, function, seeded):
         "salvo el tema si no se conoce. Cuando alcanza, missing debe ser []. Si solo pide una imagen "
         "sin tema ni contexto, preguntá subject y aspect. Conservá datos y restricciones del pedido."
         " Para video, video_mode expresa la presentación: clips son escenas reales de referencia; "
-        "animation es animación con gráficos y texto; assets usa las fotos/videos del usuario. "
+        "animation es explicación visual con diagramas, cifras, fórmulas o demostraciones; "
+        "motion es diseño animado de marca, tipografía, productos y transiciones; assets usa las fotos/videos del usuario. "
         "Short/reel solo indica un formato, no un estilo. Un short sobre una cafetería no implica clips. "
         "No elijas un estilo visual por el tema solamente; si no está claro, preguntá video_mode. "
-        "Si dice elegí vos, podés recomendar clips para un relato promocional genérico y animation "
-        "para gráficos/demostraciones. No inventes atributos de su negocio para justificar que es bueno."
+        "Si dice elegí vos, podés recomendar motion para anuncios gráficos y animation "
+        "para gráficos/demostraciones; clips para relatos con escenas reales. No inventes atributos de su negocio para justificar que es bueno."
         " Si pide comunicar por qué su negocio/producto es bueno o diferente y no aporta razones "
         "confirmadas en el pedido o contexto, preguntá facts para conocer sus características reales."
     )
@@ -274,7 +283,7 @@ async def adaptive_start(project_id, message, function, asset_ids):
         elif not delegated:
             decision.answers.video_mode = "auto"
         elif decision.answers.video_mode == "auto":
-            decision.answers.video_mode = "clips" if function == "shorts" else "animation"
+            decision.answers.video_mode = "motion"
         if decision.answers.video_mode == "assets" and not any(a["kind"] in ("image", "video") for a in store.project_assets(project_id)):
             decision.answers.video_mode = "auto"
         if decision.answers.video_mode == "assets":
@@ -373,7 +382,7 @@ async def reply_inline(project_id: str, body: Reply):
         if not found:
             found = next((key for key, label in field["choices"] if normalized in ("1:1", "4:5", "9:16", "16:9") and normalized in label), None)
         if not found and field["key"] == "video_mode":
-            aliases = {"clips": "clips", "con clips": "clips", "escenas reales": "clips", "animaciones": "animation", "animado": "animation", "graficos": "animation", "con mis fotos": "assets", "mis fotos": "assets"}
+            aliases = {"clips": "clips", "con clips": "clips", "escenas reales": "clips", "animaciones": "animation", "animado": "animation", "graficos": "animation", "diseno animado": "motion", "motion graphics": "motion", "remotion": "motion", "textos animados": "motion", "con mis fotos": "assets", "mis fotos": "assets"}
             candidate = aliases.get(normalized)
             found = candidate if candidate in {key for key, _ in field["choices"]} else None
         if not found:

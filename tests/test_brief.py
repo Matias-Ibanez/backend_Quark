@@ -189,7 +189,7 @@ def test_only_missing_fields_are_exposed_and_survive_reload(monkeypatch):
     async def plan(pid, message, function, seeded):
         return brief.Intake(answers=brief.Answers(subject="Café", medium="video", aspect="story"), missing=["seconds"])
     monkeypatch.setattr(brief, "assess", plan)
-    pid, saved = start(monkeypatch, "Creá un reel animado sobre café")
+    pid, saved = start(monkeypatch, "Creá un reel con textos animados sobre café")
     response = client.get(f"/api/projects/{pid}/brief").json()
     assert [f["key"] for f in response["fields"]] == ["seconds"]
     assert response["brief"]["answers"]["subject"] == "Café"
