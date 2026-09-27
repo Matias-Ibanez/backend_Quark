@@ -304,6 +304,8 @@ Función elegida: {function}."""
     motion = wants_video and ((creative_brief and creative_brief.get("video_mode") in ("motion", "assets")) or (not creative_brief and brief.video_direction(message) in ("motion", "assets")))
     if motion:
         prompt += "\n\n# Producción de diseño animado en este proyecto\nCargá remotion-best-practices con tu herramienta de skills y leé primero su perfil QUARK Docker. Usá Remotion para tipografía, productos, transiciones y montaje con originales; no sustituyas esta dirección por Manim ni stock. Guardá Video.tsx como componente React con export default y usá el renderizador preinstalado node /opt/quark-renderer/render-video.mjs SOURCE.tsx OUTPUT.mp4 WIDTH HEIGHT SECONDS con las dimensiones y duración confirmadas. No instales paquetes ni abras Studio. Renderizá e inspeccioná fotogramas PNG de los distintos bloques y corregí antes de exportar final.mp4 completo. Conservá la fuente para iterar. Las escenas deben desarrollar la idea durante toda la duración, no mantener una placa inmóvil para llegar al tiempo. Si hay voz, usá quark-narration y la guía de audio de la skill; la música elegida se mezcla después desde la aplicación."
+        if creative_brief:
+            prompt += "\nEste video tiene etapas controladas por la aplicación: la instrucción de etapa al final define qué debés hacer ahora. En creación/corrección solo prepará fuentes y recursos; la aplicación ejecuta render-video.mjs y solicita la revisión de una lámina. No hagas renders ni revisiones por tu cuenta."
     elif wants_video:
         prompt += "\n\n# Producción de animaciones en este proyecto\nAntes de escribir o modificar una animación, cargá manimce-best-practices con tu herramienta de skills. Leé su perfil QUARK Docker y las guías pertinentes de rules/: composición, texto, transiciones y timing. Usá Manim Community con Cairo por CPU, sin -p ni OpenGL. Toda escena de Manim debe tener fondo negro puro (#000000): configurá config.background_color = BLACK y self.camera.background_color = BLACK en cada escena. No uses fondos de marca, degradados ni placas de pantalla completa que tapen el negro; aplicá la paleta únicamente a textos, figuras y gráficos. Mantené esta regla al editar y comprobá el fondo en los fotogramas de revisión. Conservá las dimensiones confirmadas tanto en píxeles como en el encuadre lógico. No cargues obligatoriamente manim-video ni sus presets: la guía principal es manimce-best-practices. Para un montaje con originales, aplicá esto solo si agregás animaciones con Manim."
     if wants_image and not wants_video:
@@ -329,11 +331,15 @@ Función elegida: {function}."""
         payload["model_options"] = {"reasoning": {"enabled": False}}
     try:
         async with httpx.AsyncClient(timeout=600) as client:
-            response = await client.post(url, headers=headers, json=payload)
-        if response.status_code != 200:
-            log.warning("Hermes devolvió HTTP %s", response.status_code)
-            raise HTTPException(502, "No pude completar el pedido. Probá de nuevo en unos minutos.")
-        result = response.json()
+            if motion and creative_brief:
+                from . import motion as motion_pipeline
+                result = await motion_pipeline.produce(client, url, headers, payload, folder, project_id, creative_brief, metrics)
+            else:
+                response = await client.post(url, headers=headers, json=payload)
+                if response.status_code != 200:
+                    log.warning("Hermes devolvió HTTP %s", response.status_code)
+                    raise HTTPException(502, "No pude completar el pedido. Probá de nuevo en unos minutos.")
+                result = response.json()
         metrics["usage"] = result.get("usage")
         metrics["provider"] = result.get("runtime", {}).get("provider") or "deepseek"
         metrics["model"] = result.get("runtime", {}).get("model") or MODEL

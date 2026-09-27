@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from backend import agent, brief, narration, store
+from backend import agent, brief, narration, store, motion
 
 
 @pytest.mark.parametrize("seconds", [None, 5, 30, 180])
@@ -44,6 +44,9 @@ def test_hermes_receives_narration_skill_only_for_spoken_video(monkeypatch, medi
         return ["/media/exports/test.mp4" if medium == "video" else "/media/exports/test.svg"]
 
     monkeypatch.setattr(agent.httpx, "AsyncClient", Client)
+    async def controlled_pipeline(client, url, headers, payload, *args):
+        return (await client.post(url, headers=headers, json=payload)).json()
+    monkeypatch.setattr(motion, 'produce', controlled_pipeline)
     monkeypatch.setattr(agent, "import_hermes_media", import_media)
     monkeypatch.setattr(agent, "assemble_rendered_scenes", lambda *args: False)
     asyncio.run(agent._hermes_chat(pid, "Creá mi pieza", "content", [], {}))
