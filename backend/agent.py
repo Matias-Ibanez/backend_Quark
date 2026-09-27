@@ -256,7 +256,7 @@ async def _hermes_chat(project_id, message, function, asset_ids, metrics, *, rec
     render_started_ns = time.time_ns()
     previous_messages = store.messages(project_id)
     target_seconds = requested_video_seconds([*previous_messages, {"role": "user", "content": message}])
-    require_audio = bool(re.search(r"\b(?:locuci[oó]n|narraci[oó]n|voz\s+en\s+off)\b", message, re.I))
+    require_audio = brief.narration_direction(message) == "voice"
     wants_video = (bool(re.search(r"\b(?:videos?|vídeos?|reels?|mp4)\b", message, re.I)) or require_audio) and not bool(re.search(r"\b(?:no|sin)\s+(?:hagas?|hacer|quiero|generes?|videos?|vídeos?|reels?)\b", message, re.I))
     wants_image = bool(re.search(r"\b(?:banner|logo|post|publicaci[oó]n|imagen|diseño|placa|flyer|afiche|svg)\b", message, re.I))
     revising = bool(re.search(r"\b(?:rehac\w*|mejor\w*|edit\w*|cambi\w*|ajust\w*|agreg\w*)\b", message, re.I))

@@ -9,7 +9,7 @@ El agente evalúa el pedido, los adjuntos y los últimos mensajes antes de produ
 3. Cuando no queden preguntas, podés abrir **Revisar mis respuestas** y editar una respuesta individual. Pulsá **Crear mi pieza** o escribí `crear` para empezar. Cancelar conserva la conversación y no genera contenido.
 4. El resultado aparece como tarjeta compacta en su mensaje. Un clic abre la vista previa; **Archivos** reúne los recursos de ese chat y **Biblioteca** reúne las piezas generadas. Para iterar, escribí el cambio en la misma conversación o usá **Seguir editando** desde la vista previa.
 
-Las decisiones disponibles incluyen público, objetivo, canal, imagen/video/carrusel, proporción, duración de 5–180 segundos, 2–10 láminas, estilo, paleta, tipografía, tono, adjuntos, texto exacto, llamada a la acción, datos confirmados, voz y música. Solo se pregunta lo que falta. Por ejemplo, «creame una imagen» sin contexto pregunta tema y formato; «creá un reel con diseño animado sobre café» puede preguntar solo duración; una imagen cuadrada con tema y dirección visual puede pasar directamente a producción. La evaluación depende del modelo y puede equivocarse; se puede cancelar o corregir por chat.
+Las decisiones disponibles incluyen público, objetivo, canal, imagen/video/carrusel, proporción, duración de 5–180 segundos, 2–10 láminas, estilo, paleta, tipografía, tono, adjuntos, texto exacto, llamada a la acción, datos confirmados, voz y música. Solo se pregunta lo que falta. Por ejemplo, «creame una imagen» sin contexto pregunta tema y formato; «creá un reel con diseño animado sobre café» pregunta duración y si lleva voz cuando no se indicaron; una imagen cuadrada con tema y dirección visual puede pasar directamente a producción. La evaluación depende del modelo y puede equivocarse; se puede cancelar o corregir por chat.
 
 Cada opción elegida o respuesta enviada se guarda y queda en el historial. El texto todavía sin enviar se conserva durante las actualizaciones periódicas, pero no al recargar. Una versión guardada en otra pestaña reemplaza el borrador anterior; los envíos con versiones desactualizadas se rechazan. Preguntar quién es QUARK durante las aclaraciones no consume la respuesta pendiente.
 
@@ -29,7 +29,7 @@ Las imágenes y cada lámina del carrusel conservan SVG y PNG. Un carrusel incom
 
 Short/reel define un formato, no un motor. Si el pedido no define una presentación, QUARK pregunta **¿Cómo te gustaría contar la idea?**, con estas opciones:
 
-- **Escenas reales · voz y subtítulos:** montaje de biblioteca con MoneyPrinterTurbo. Son escenas ilustrativas; no se presentan como imágenes del local o los clientes reales. Si se pidió sin voz, la opción lo indica y se elimina la narración del resultado. Se envía la proporción elegida; 4:5 se encuadra localmente desde 9:16 con márgenes para conservar la escena y sus subtítulos.
+- **Escenas reales · clips de referencia:** montaje de biblioteca con MoneyPrinterTurbo. Son escenas ilustrativas; no se presentan como imágenes del local o los clientes reales. La voz se elige por separado; si se eligió sin voz, se elimina la narración del resultado. Se envía la proporción elegida; 4:5 se encuadra localmente desde 9:16 con márgenes para conservar la escena y sus subtítulos.
 - **Diseño animado · textos y transiciones:** Hermes carga remotion-best-practices y usa el runtime Remotion instalado para motion graphics, anuncios, tipografía y transiciones.
 - **Explicación visual · gráficos y demostraciones:** Hermes carga manimce-best-practices y usa Manim Community para números, diagramas y demostraciones.
 - **Con mis fotos · mostrar mi marca:** aparece cuando hay fotos originales adjuntas; Hermes las usa con Remotion, textos y animación de apoyo.
@@ -45,3 +45,10 @@ Para comunicar por qué una marca es buena o diferente, la evaluación pide sus 
 `GET /api/projects/{id}/brief` conserva el contrato anterior y agrega `question` (clave pendiente o null) y `answered`. `PUT` guarda, cancela o confirma con `id`, `version`, `answers`, `action` y opcionalmente `field` para guardar una respuesta individual. `POST /api/projects/{id}/brief/reply` acepta `id`, `version` y `message` desde el compositor: interpreta opciones, proporciones y cantidades sin llamar al modelo. Confirmar inicia una sola ejecución y devuelve `run`; las claves permanecen en el servidor. `POST /api/projects/{id}/brief/reopen` permite revisar una pieza terminada. La tabla `brief_responses` conserva el avance, sin modificar mensajes o exportaciones anteriores.
 
 Para volver al flujo anterior se pueden revertir los commits de esta implementación en ambos repositorios. La tabla `project_briefs` puede permanecer sin uso; no se borran conversaciones ni exportaciones anteriores.
+
+
+## Voz para cualquier video
+
+Al crear un video, QUARK pregunta **¿Querés que el video tenga voz?**, con **Con voz en español** y **Sin voz**, si el pedido no lo especificó. Esto se aplica a explicación visual (Manim), diseño animado (Remotion), originales y escenas reales (MoneyPrinterTurbo). Ni el tipo de video ni una suposición del modelo activan o descartan la voz. La elección se guarda en el chat y se requiere antes de confirmar; también se puede responder «sí», «con voz» o «sin voz».
+
+Si el pedido ya dice con voz, sin voz o con narración, no se repite la pregunta. Las revisiones conservan la elección; «agregá voz» o «quitá la voz» la cambian. Las imágenes y carruseles no muestran esta pregunta. Si se cambia el tipo de pieza a video durante las preguntas, aparece la elección de voz. La locución usa quark-narration y la entrega comprueba la pista de audio antes de adjuntar el video. En Hermes, la guía incluye Edge TTS tanto para Manim como para Remotion.

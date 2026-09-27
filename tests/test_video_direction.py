@@ -38,6 +38,11 @@ def test_inline_choice_persists_and_controls_renderer_on_confirmation(monkeypatc
     assert response.status_code == 200
     saved = brief.get(pid)
     assert saved["answers"]["video_mode"] == mode
+    assert brief.read_brief(pid)["question"] == "narration"
+    with TestClient(app) as client:
+        response = client.post(f"/api/projects/{pid}/brief/reply", json={"id": saved["id"], "version": saved["version"], "message": "Sin voz"})
+    assert response.status_code == 200
+    saved = brief.get(pid)
     assert brief.read_brief(pid)["question"] is None
     store.init_db()
     assert brief.get(pid)["answers"]["video_mode"] == mode
@@ -67,7 +72,7 @@ def test_explicit_animated_short_produces_without_style_question(monkeypatch):
         raise AssertionError("An animated explanation must not become a stock montage")
     monkeypatch.setattr(agent, "_hermes_chat", render)
     monkeypatch.setattr(shorts, "create_short", no_stock)
-    pid, result = prepare(monkeypatch, "Creá un short animado de 20 segundos sobre una ecuación", guessed_mode="clips")
+    pid, result = prepare(monkeypatch, "Creá un short animado de 20 segundos sobre una ecuación sin voz", guessed_mode="clips")
     assert called == ["hermes"] and result["media"]
     assert brief.get(pid)["answers"]["video_mode"] == "animation"
 

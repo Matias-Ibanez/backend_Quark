@@ -50,7 +50,7 @@ def test_bare_request_asks_for_content_without_claiming_delegated_choices(monkey
     state = client.get(f"/api/projects/{project_id}/brief").json()
     assert saved["status"] == "draft" and saved["answers"]["subject"] == ""
     assert state["question"] == "subject"
-    assert [field["key"] for field in state["fields"]] == (["subject", "video_mode", "aspect", "seconds"] if saved["answers"]["medium"] == "video" else ["subject", "aspect"])
+    assert [field["key"] for field in state["fields"]] == (["subject", "video_mode", "aspect", "seconds", "narration"] if saved["answers"]["medium"] == "video" else ["subject", "aspect"])
     introduction = store.messages(project_id)[-1]["content"]
     assert "Antes de crear" in introduction and "preguntas" in introduction
     assert "criterio" not in introduction and "dejaste" not in introduction
@@ -189,7 +189,7 @@ def test_only_missing_fields_are_exposed_and_survive_reload(monkeypatch):
     async def plan(pid, message, function, seeded):
         return brief.Intake(answers=brief.Answers(subject="Café", medium="video", aspect="story"), missing=["seconds"])
     monkeypatch.setattr(brief, "assess", plan)
-    pid, saved = start(monkeypatch, "Creá un reel con textos animados sobre café")
+    pid, saved = start(monkeypatch, "Creá un reel con textos animados sobre café sin voz")
     response = client.get(f"/api/projects/{pid}/brief").json()
     assert [f["key"] for f in response["fields"]] == ["seconds"]
     assert response["brief"]["answers"]["subject"] == "Café"
@@ -279,7 +279,7 @@ def test_medium_question_includes_duration_and_slide_inputs(monkeypatch):
     monkeypatch.setattr(brief, "assess", plan)
     pid, _ = start(monkeypatch, "Creá una pieza sobre café")
     fields = client.get(f"/api/projects/{pid}/brief").json()["fields"]
-    assert {f["key"] for f in fields} == {"medium", "video_mode", "seconds", "slides"}
+    assert {f["key"] for f in fields} == {"medium", "video_mode", "seconds", "slides", "narration"}
     assert next(f for f in fields if f["key"] == "seconds")["when"] == ["medium", "video"]
 
 

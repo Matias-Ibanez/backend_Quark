@@ -77,7 +77,7 @@ FIELDS = [
     field("audience", "¿A quién va dirigido?", 0, required=True, maxLength=500),
     field("objective", "¿Qué querés lograr?", 0, [["inform", "Informar"], ["sell", "Vender"], ["educate", "Explicar un tema"], ["engage", "Generar interacción"]]),
     field("medium", "¿Qué vamos a crear?", 1, [["image", "Imagen"], ["video", "Video"], ["carousel", "Carrusel"]]),
-    field("video_mode", "¿Cómo te gustaría contar la idea?", 1, [["clips", "Escenas reales · voz y subtítulos"], ["motion", "Diseño animado · textos y transiciones"], ["animation", "Explicación visual · gráficos y demostraciones"], ["assets", "Con mis fotos · mostrar mi marca"]], when=["medium", "video"]),
+    field("video_mode", "¿Cómo te gustaría contar la idea?", 1, [["clips", "Escenas reales · clips de referencia"], ["motion", "Diseño animado · textos y transiciones"], ["animation", "Explicación visual · gráficos y demostraciones"], ["assets", "Con mis fotos · mostrar mi marca"]], when=["medium", "video"]),
     field("platform", "¿Dónde lo vas a usar?", 1, [["instagram", "Instagram"], ["tiktok", "TikTok"], ["youtube", "YouTube"], ["linkedin", "LinkedIn"], ["web", "Web o presentación"]]),
     field("aspect", "¿Qué formato preferís?", 1, [["portrait", "Vertical · 4:5"], ["story", "Historia / reel · 9:16"], ["square", "Cuadrado · 1:1"], ["landscape", "Horizontal · 16:9"]]),
     field("seconds", "Duración del video en segundos", 1, type="number", min=5, max=180, when=["medium", "video"]),
@@ -93,7 +93,7 @@ FIELDS = [
     field("copy_text", "Texto exacto", 3, when=["copy_mode", "exact"], maxLength=2000),
     field("cta", "¿Qué querés que haga quien lo vea? (opcional)", 3, maxLength=300),
     field("facts", "¿Qué datos o características confirmadas debemos incluir?", 3, maxLength=2000),
-    field("narration", "¿Lleva voz?", 3, [["none", "Sin voz"], ["voice", "Con narración en español"]], when=["medium", "video"]),
+    field("narration", "¿Querés que el video tenga voz?", 3, [["voice", "Con voz en español"], ["none", "Sin voz"]], when=["medium", "video"]),
     field("music", "¿Querés música de fondo?", 3, [["none", "Sin música"], ["later", "Elegir una canción después"]], when=["medium", "video"]),
     field("notes", "Detalles a respetar o evitar (opcional)", 3, maxLength=2000),
 ]
@@ -139,7 +139,7 @@ def maybe_start(project_id, message, function, asset_ids, *, quiet=False):
         request_text = re.sub(r"^(?:por favor\s+)?(?:podrias|podes|puedes)\s+", "", request_text)
         answers = Answers(subject="" if guardrails.BARE_MEDIA_PATTERN.fullmatch(request_text) else message,
                           medium=medium, video_mode=video_direction(message) or "auto", aspect="story" if medium == "video" else "portrait",
-                          narration="voice" if function == "shorts" else "none")
+                          narration=narration_direction(message) or "none")
         normalized = guardrails.normalize(message)
         if "horizontal" in normalized or "16:9" in normalized:
             answers.aspect = "landscape"
@@ -154,10 +154,6 @@ def maybe_start(project_id, message, function, asset_ids, *, quiet=False):
             seconds = int(duration[1]) * (60 if duration[2].startswith("min") else 1)
             if 5 <= seconds <= 180:
                 answers.seconds = seconds
-        if "voz en off" in normalized or "con narracion" in normalized or "con locucion" in normalized:
-            answers.narration = "voice"
-        if re.search(r"\bsin (?:voz|narracion|locucion)\b", normalized):
-            answers.narration = "none"
         with store.connection() as db:
             db.execute("INSERT OR REPLACE INTO project_briefs VALUES (?,?,?,?,?,?,?,?,?)", (
                 project_id, store.uid(), "draft", 1, message, function, json.dumps(asset_ids or []),
@@ -172,6 +168,17 @@ def maybe_start(project_id, message, function, asset_ids, *, quiet=False):
 class Intake(Strict):
     answers: Answers
     missing: list[str] = Field(max_length=24)
+
+
+def narration_direction(message):
+    """An explicit voice decision, independent of format, style or model defaults."""
+    text = guardrails.normalize(message)
+    if re.search(r"\bcon voz\s*(?:o|/)\s*sin voz\b|\bsin voz\s*(?:o|/)\s*con voz\b", text):
+        return None
+    choices = list(re.finditer(
+        r"\b(?:(?P<silent>(?:sin|no quiero|quita\w*|saca\w*|elimina\w*) (?:la )?(?:voz(?: en off)?|narracion|locucion|audio))"
+        r"|(?P<spoken>con (?:voz(?: en off)?|narracion|locucion)|voz en off|narrad\w*|(?:agrega\w*|suma\w*) (?:una |la )?(?:voz|narracion|locucion)))\b", text))
+    return ("none" if choices[-1].group("silent") else "voice") if choices else None
 
 
 def video_direction(message):
@@ -210,7 +217,9 @@ async def assess(project_id, message, function, seeded):
         "preguntá aspect. Para video preguntá seconds si no se indicó ni se delegó; para carrusel slides. "
         "Paleta, tipografía y estilo pueden ser auto salvo que el usuario exija identidad de marca sin "
         "aportar sus colores/fuente: preguntá colors/font. No exijas audiencia ni objetivo si se infieren. "
-        "No pidas música, voz ni CTA por rutina. Si dice elegí vos/usá tu criterio, decidí los detalles "
+        "No pidas música ni CTA por rutina. En todo video preguntá narration si no indicó con o sin voz; "
+        "la voz se elige independientemente de clips, animación, diseño u originales. No la deduzcas del motor. "
+        "Si dice elegí vos/usá tu criterio, decidí los detalles visuales "
         "salvo el tema si no se conoce. Cuando alcanza, missing debe ser []. Si solo pide una imagen "
         "sin tema ni contexto, preguntá subject y aspect. Conservá datos y restricciones del pedido."
         " Para video, video_mode expresa la presentación: clips son escenas reales de referencia; "
@@ -290,8 +299,16 @@ async def adaptive_start(project_id, message, function, asset_ids):
             decision.answers.assets = "use"
         if decision.answers.video_mode != "auto":
             decision.missing = [key for key in decision.missing if key != "video_mode"]
-        if decision.answers.video_mode == "clips" and not re.search(r"\bsin (?:voz|narracion|locucion)\b", guardrails.normalize(message)):
-            decision.answers.narration = "voice"
+        voice = narration_direction(message)
+        if voice is None:
+            decision.answers.narration = "none"  # Placeholder, never consent to produce silently.
+            if "narration" not in decision.missing:
+                decision.missing.append("narration")
+        else:
+            decision.answers.narration = voice
+            decision.missing = [key for key in decision.missing if key != "narration"]
+    else:
+        decision.missing = [key for key in decision.missing if key != "narration"]
     # An exact-text question must open its input even if the planner left auto selected.
     if "copy_text" in decision.missing:
         decision.answers.copy_mode = "exact"
@@ -323,7 +340,7 @@ def read_brief(project_id: str):
             keys = ["notes"]
     fields = [f for f in FIELDS if keys is None or f["key"] in keys]
     # Include dependent inputs when the customer chooses a custom palette or exact copy.
-    for parent, child in (("palette", "colors"), ("copy_mode", "copy_text"), ("medium", "video_mode"), ("medium", "seconds"), ("medium", "slides")):
+    for parent, child in (("palette", "colors"), ("copy_mode", "copy_text"), ("medium", "video_mode"), ("medium", "seconds"), ("medium", "slides"), ("medium", "narration")):
         if any(f["key"] == parent for f in fields) and not any(f["key"] == child for f in fields):
             fields.append(next(f for f in FIELDS if f["key"] == child))
     visible_keys = {f["key"] for f in fields}
@@ -332,8 +349,6 @@ def read_brief(project_id: str):
         fields = [{**f, "required": True} if f["key"] == "facts" else f for f in fields]
     if not any(a["kind"] in ("image", "video") for a in store.project_assets(project_id)):
         fields = [{**f, "choices": [choice for choice in f["choices"] if choice[0] != "assets"]} if f["key"] == "video_mode" else f for f in fields]
-    if current and re.search(r"\bsin (?:voz|narracion|locucion)\b", guardrails.normalize(current["request"])):
-        fields = [{**f, "choices": [[key, "Clips reales de referencia · sin voz" if key == "clips" else label] for key, label in f["choices"]]} if f["key"] == "video_mode" else f for f in fields]
     fields.sort(key=lambda f: next(i for i, known in enumerate(FIELDS) if known["key"] == f["key"]))
     with store.connection() as db:
         answered = [r[0] for r in db.execute("SELECT field FROM brief_responses WHERE brief_id=?", (current["id"],))] if current else []
@@ -385,6 +400,8 @@ async def reply_inline(project_id: str, body: Reply):
             aliases = {"clips": "clips", "con clips": "clips", "escenas reales": "clips", "animaciones": "animation", "animado": "animation", "graficos": "animation", "diseno animado": "motion", "motion graphics": "motion", "remotion": "motion", "textos animados": "motion", "con mis fotos": "assets", "mis fotos": "assets"}
             candidate = aliases.get(normalized)
             found = candidate if candidate in {key for key, _ in field["choices"]} else None
+        if not found and field["key"] == "narration":
+            found = {"si": "voice", "con voz": "voice", "con narracion": "voice", "no": "none", "sin narracion": "none"}.get(normalized)
         if not found:
             raise HTTPException(422, "Elegí una de las opciones de la pregunta o escribí su nombre.")
         value = found
@@ -406,6 +423,10 @@ async def update_brief(project_id: str, body: UpdateBrief):
     current = get(project_id)
     if not current or current["id"] != body.id or current["version"] != body.version or current["status"] not in ("draft", "failed"):
         raise HTTPException(409, "Los detalles cambiaron. Recargá las opciones antes de continuar.")
+    if body.action == "confirm" and body.answers.medium == "video":
+        state = read_brief(project_id)
+        if any(f["key"] == "narration" for f in state["fields"]) and "narration" not in state["answered"]:
+            raise HTTPException(422, "Elegí si querés el video con voz o sin voz antes de crear.")
     if body.action == "confirm" and body.answers.missing_required():
         titles = {f["key"]: f["title"] for f in FIELDS}
         raise HTTPException(422, "Completá estos datos antes de crear: " + "; ".join(titles[key] for key in body.answers.missing_required()))
@@ -423,10 +444,6 @@ async def update_brief(project_id: str, body: UpdateBrief):
             raise HTTPException(422, "Elegí una de las opciones disponibles.")
         if (selected.get("required") or body.field in ("copy_text", "colors")) and not str(value).strip():
             raise HTTPException(422, "Escribí tu respuesta para continuar.")
-    if body.field == "video_mode" and body.answers.video_mode == "clips":
-        # This option visibly includes narration; a previous explicit silence choice wins.
-        if not re.search(r"\bsin (?:voz|narracion|locucion)\b", guardrails.normalize(current["request"])):
-            body.answers.narration = "voice"
     if body.field == "video_mode" and body.answers.video_mode == "assets":
         body.answers.assets = "use"
     with store.connection() as db:
@@ -523,10 +540,9 @@ def production_context(project_id, message=None):
             seconds = int(duration[1]) * (60 if duration[2].startswith("min") else 1)
             if 5 <= seconds <= 180:
                 revised["seconds"] = seconds
-        if re.search(r"\bsin (?:voz|narracion|locucion)\b", text):
-            revised["narration"] = "none"
-        elif re.search(r"\b(?:con voz|voz en off|con narracion|con locucion)\b", text):
-            revised["narration"] = "voice"
+        voice = narration_direction(message)
+        if voice is not None:
+            revised["narration"] = voice
         colors = re.findall(r"#[0-9a-fA-F]{6}\b", message)
         if colors:
             revised.update(palette="custom", colors=", ".join(colors[:5]))
