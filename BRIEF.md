@@ -13,6 +13,8 @@ Las decisiones disponibles incluyen público, objetivo, canal, imagen/video/carr
 
 Cada opción elegida o respuesta enviada se guarda y queda en el historial. El texto todavía sin enviar se conserva durante las actualizaciones periódicas, pero no al recargar. Una versión guardada en otra pestaña reemplaza el borrador anterior; los envíos con versiones desactualizadas se rechazan. Preguntar quién es QUARK durante las aclaraciones no consume la respuesta pendiente.
 
+Un pedido mínimo no significa que el usuario delegó decisiones. Las aclaraciones se presentan de forma neutral; los valores automáticos de estilo, paleta y tipografía son propuestas del agente, no preferencias del usuario. Solo se habla de decisiones delegadas cuando el usuario lo pide expresamente o elige **Elegir por mí**.
+
 La evaluación estructurada usa DeepSeek sin herramientas y registra tokens y costo en `aux_usage`, con origen `creative_intake`. Un pedido mínimo sin tema ni historial abre las preguntas básicas sin llamar al modelo. Ante un fallo o JSON inválido se muestran tema y formato como respaldo; no se produce a partir de una evaluación inválida.
 
 ## Validación y entrega

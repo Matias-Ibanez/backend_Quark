@@ -237,7 +237,7 @@ async def adaptive_start(project_id, message, function, asset_ids):
             decision.answers.model_dump_json(), "draft" if decision.missing else "generating", project_id, current["id"]))
     if not decision.missing:
         return None
-    result["message"] = "¡Entendido! Antes de crear, necesito aclarar estas decisiones. El resto lo tomaré de tu pedido y elegiré los detalles que dejaste a mi criterio."
+    result["message"] = "¡Entendido! Antes de crear, necesito algunos datos. Vamos a definirlos con estas preguntas."
     store.add_user_message(project_id, message, asset_ids)
     store.add_message(project_id, "assistant", result["message"])
     return result

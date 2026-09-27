@@ -39,6 +39,24 @@ def test_bare_request_waits_for_persistent_brief_without_llm(monkeypatch):
     assert brief.maybe_start(project_id, "Sí", "content", []) is not None
 
 
+@pytest.mark.parametrize("message", ["Creame una imagen", "Generame una imagen", "Haceme un video"])
+def test_bare_request_asks_for_content_without_claiming_delegated_choices(monkeypatch, message):
+    monkeypatch.setattr(brief, "assess", real_assess)
+    class NoClient:
+        def __init__(self, **kwargs):
+            raise AssertionError("A bare request must ask for content without a provider call")
+    monkeypatch.setattr(brief.httpx, "AsyncClient", NoClient)
+    project_id, saved = start(monkeypatch, message)
+    state = client.get(f"/api/projects/{project_id}/brief").json()
+    assert saved["status"] == "draft" and saved["answers"]["subject"] == ""
+    assert state["question"] == "subject"
+    assert [field["key"] for field in state["fields"]] == ["subject", "aspect"]
+    introduction = store.messages(project_id)[-1]["content"]
+    assert "Antes de crear" in introduction and "preguntas" in introduction
+    assert "criterio" not in introduction and "dejaste" not in introduction
+    assert brief.production_context(project_id) is None
+
+
 def test_confirmation_validates_data_and_stale_answers(monkeypatch):
     project_id, saved = start(monkeypatch)
     payload = {"id": saved["id"], "version": 1, "action": "confirm", "answers": saved["answers"]}
