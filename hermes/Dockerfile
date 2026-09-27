@@ -14,4 +14,6 @@ RUN node --input-type=module -e "import {ensureBrowser} from '@remotion/renderer
 COPY renderer/ ./
 WORKDIR /opt/hermes
 COPY patch_usage.py /tmp/patch_usage.py
+COPY quark_video.py /opt/hermes/quark_video.py
+COPY test_quark_video.py /opt/hermes/test_quark_video.py
 RUN python /tmp/patch_usage.py && /opt/hermes/.venv/bin/python -m py_compile /opt/hermes/gateway/platforms/api_server.py
