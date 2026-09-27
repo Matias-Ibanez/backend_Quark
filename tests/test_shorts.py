@@ -11,16 +11,19 @@ from backend import agent, shorts, store, brief
 
 @pytest.fixture(autouse=True)
 def production_tests_bypass_intake(monkeypatch):
+    store.init_db()
     async def bypass(*args): return None
     monkeypatch.setattr(brief, "adaptive_start", bypass)
 
 
-@pytest.mark.parametrize("aspect,narration,seconds", [(None, "voice", 6), ("square", "voice", 6), ("portrait", "none", 6), ("story", "voice", 7)])
-def test_topic_only_short_uses_mpt_and_imports_single_valid_mp4(monkeypatch, tmp_path, aspect, narration, seconds):
+@pytest.mark.parametrize("aspect,narration,seconds,copy_mode", [(None, "voice", 6, "auto"), ("square", "voice", 6, "auto"), ("portrait", "none", 6, "auto"), ("story", "voice", 7, "auto"), ("story", "voice", 6, "exact")])
+def test_topic_only_short_uses_mpt_and_imports_single_valid_mp4(monkeypatch, tmp_path, aspect, narration, seconds, copy_mode):
     project = store.create_project("Short sobre café")
     if aspect:
         brief.maybe_start(project["id"], "Un video con clips sobre café", "shorts", [], quiet=True)
-        answers = brief.Answers(subject="Café de especialidad", medium="video", video_mode="clips", aspect=aspect, narration=narration, seconds=seconds)
+        answers = brief.Answers(subject="Café de especialidad", medium="video", video_mode="clips", aspect=aspect, narration=narration, seconds=seconds,
+                                facts="Molemos al pedir", cta="Vení a conocernos", copy_mode=copy_mode,
+                                copy_text="Tu pausa, tu café. Vení a conocernos." if copy_mode == "exact" else "")
         with store.connection() as db:
             db.execute("UPDATE project_briefs SET answers=?,status='generating' WHERE project_id=?", (answers.model_dump_json(), project["id"]))
     source = tmp_path / "result.mp4"
@@ -54,6 +57,13 @@ def test_topic_only_short_uses_mpt_and_imports_single_valid_mp4(monkeypatch, tmp
     assert submitted[0]["video_aspect"] == ("1:1" if aspect == "square" else "9:16")
     assert submitted[0]["video_count"] == 1
     assert submitted[0]["n_threads"] == 4
+    script_prompt = submitted[0]["video_script_prompt"]
+    assert len(script_prompt) <= 2000
+    assert "Escribí para el oído" in script_prompt and "Solo hechos confirmados" in script_prompt
+    if copy_mode == "exact":
+        assert submitted[0]["video_script"] == answers.copy_text
+    else:
+        assert "video_script" not in submitted[0]
     assert len(result["media"]) == 1
     assert (store.DATA / "exports" / result["media"][0].rsplit("/", 1)[-1]).is_file()
     final = store.DATA / "exports" / result["media"][0].rsplit("/", 1)[-1]
@@ -65,6 +75,8 @@ def test_topic_only_short_uses_mpt_and_imports_single_valid_mp4(monkeypatch, tmp
         assert (stream["width"], stream["height"]) == (1080, 1350)
     if aspect:
         assert "clips de la biblioteca" in submitted[0]["custom_system_prompt"]
+        assert "Molemos al pedir" in submitted[0]["custom_system_prompt"] and "Vení a conocernos" in submitted[0]["custom_system_prompt"]
+        assert f"Duración objetivo: {seconds} segundos" in script_prompt
     assert len([m for m in store.messages(project["id"]) if m["media"]]) == 1
     with store.connection() as db:
         usage = db.execute("SELECT cost_usd,media_count FROM agent_usage WHERE project_id=? ORDER BY created_at DESC LIMIT 1", (project["id"],)).fetchone()

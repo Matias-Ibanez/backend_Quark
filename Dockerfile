@@ -8,6 +8,8 @@ COPY backend ./backend
 COPY hermes/SYSTEM.md ./SYSTEM.md
 COPY hermes/skills/quark-marketing/SKILL.md ./marketing-skill.md
 COPY hermes/skills/quark-static-post/SKILL.md ./static-post-skill.md
+COPY hermes/skills/quark-narration/SKILL.md ./narration-skill.md
+COPY hermes/skills/quark-narration/LICENSE ./narration-skill.LICENSE
 COPY hermes/renderer/svg_artifact.py ./hermes/renderer/svg_artifact.py
 RUN mkdir -p /data && groupadd -g 10000 shared && useradd -m -u 10001 -G shared studio && chown -R studio:studio /data /app
 USER studio

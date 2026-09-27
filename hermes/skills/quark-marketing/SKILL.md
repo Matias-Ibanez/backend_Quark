@@ -30,7 +30,7 @@ Create a complete `final.mp4` as soon as all planned video scenes render success
 - Check that each scene follows logically from the previous one and that the opening question is answered before the closing card. Do not stitch unrelated renders merely to reach the target duration.
 - Review still frames from the beginning, middle, and end of the stitched video. On a vertical canvas, use the space deliberately: make the main diagram and one short headline large enough for a phone. Avoid a tiny central cluster surrounded by empty space or multiple overlapping lines of math.
 - Prefer one visual idea per beat. In a 30-second educational reel, teach one concept with a clear visual progression; keep formulas mathematically correct and readable, and leave the creator's requested name visible in the closing shot.
-- When a voiceover is requested, verify the exported MP4 has an audio stream, that speech is intelligible and timed to the visuals, and that the narration does not end abruptly. Never report success before these checks pass.
+- When a voiceover is requested, load `quark-narration` before writing: plan one message with a concrete hook, supported development and a coherent closing. Measure the generated speech before timing scenes. Verify the exported MP4 has an audio stream, that speech is intelligible and timed to the visuals, and that the narration does not end abruptly. Never report success before these checks pass.
 - If the full render is unfinished, say so plainly and continue from the editable source. Do not offer a partial scene as a completed video.
 
 ## Iterations
