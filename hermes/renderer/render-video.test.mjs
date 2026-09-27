@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {dimensions, render} from './render-video.mjs';
+import {dimensions, render, reviewFrames} from './render-video.mjs';
 
 test('confirmed duration and format are imposed independently of generated markup', () => {
   assert.deepEqual(dimensions(1080, 1920, 30, 2), {width: 1080, height: 1920, durationInFrames: 900, fps: 30});
@@ -11,4 +11,10 @@ test('confirmed duration and format are imposed independently of generated marku
 
 test('external files are rejected before executing generated code', async () => {
   await assert.rejects(render(['/etc/passwd', '/tmp/test.mp4', '320', '320', '5']), /inside \/workspace\/hermes/);
+});
+
+test('preview sampling is bounded and covers opening, development and closing', () => {
+  assert.deepEqual(reviewFrames(300), [24,75,126,174,225,276]);
+  assert.deepEqual(reviewFrames(300,'10,80,180,280'),[10,80,180,280]);
+  for (const frames of ['0,1,2','1,1,2,3','0,1,2,300','0,1,2,NaN','0,1,2,3,4,5,6']) assert.throws(() => reviewFrames(300,frames));
 });

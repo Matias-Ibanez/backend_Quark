@@ -2,10 +2,21 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import {fileURLToPath, pathToFileURL} from 'node:url';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
 import {bundle} from '@remotion/bundler';
-import {renderMedia, renderStill, selectComposition} from '@remotion/renderer';
+import {openBrowser, renderMedia, renderStill, selectComposition} from '@remotion/renderer';
 
 const runtime = path.dirname(fileURLToPath(import.meta.url));
+const execute = promisify(execFile);
+
+export function reviewFrames(duration, supplied) {
+  const frames = supplied === undefined ? [.08,.25,.42,.58,.75,.92].map(t => Math.floor(t * duration)) : supplied.split(',').map(Number);
+  if (frames.length < 4 || frames.length > 6 || new Set(frames).size !== frames.length || frames.some(f => !Number.isInteger(f) || f < 0 || f >= duration)) {
+    throw new Error('Preview requires 4–6 distinct frames inside the timeline.');
+  }
+  return frames;
+}
 
 // A component is enough: the wrapper owns the agreed canvas, duration and FPS.
 export function dimensions(width, height, seconds, concurrency) {
@@ -49,6 +60,8 @@ async function acquireLock() {
 }
 
 export async function render(args) {
+  const preview = args[0] === '--preview';
+  if (preview) args = args.slice(1);
   const [sourceArg, outputArg, widthArg, heightArg, secondsArg, frameArg] = args;
   if (args.length < 5 || args.length > 6) throw new Error('Usage: render-video.mjs Video.tsx output.mp4 WIDTH HEIGHT SECONDS; or output.png WIDTH HEIGHT SECONDS FRAME');
   const concurrency = Number(process.env.QUARK_REMOTION_CONCURRENCY || 2);
@@ -58,12 +71,13 @@ export async function render(args) {
   const output = path.resolve(outputArg);
   await workspacePath(path.dirname(output));
   const still = output.endsWith('.png');
-  const frame = Number(frameArg);
-  if (still ? (!Number.isInteger(frame) || frame < 0 || frame >= config.durationInFrames) : (!output.endsWith('.mp4') || frameArg !== undefined)) {
+  const frame = Number(frameArg), frames = preview ? reviewFrames(config.durationInFrames, frameArg) : null;
+  if (preview ? !still : still ? (!Number.isInteger(frame) || frame < 0 || frame >= config.durationInFrames) : (!output.endsWith('.mp4') || frameArg !== undefined)) {
     throw new Error('MP4 takes no frame; PNG requires a frame within the composition.');
   }
   const unlock = await acquireLock();
   let scratch;
+  let browser;
   const started = performance.now();
   try {
     scratch = await fs.mkdtemp(path.join(path.dirname(source), '.remotion-'));
@@ -86,18 +100,42 @@ registerRoot(() => <Composition id="QuarkVideo" component={Video} width={${confi
       }}),
     });
     const chromiumOptions = {enableMultiProcessOnLinux: true, gl: 'swangle'};
-    const composition = await selectComposition({serveUrl, id: 'QuarkVideo', chromiumOptions});
+    browser = await openBrowser('chrome', {chromiumOptions});
+    const composition = await selectComposition({serveUrl, id: 'QuarkVideo', chromiumOptions, puppeteerInstance: browser});
     const staged = path.join(scratch, still ? 'result.png' : 'result.mp4');
-    if (still) {
-      await renderStill({serveUrl, composition, output: staged, frame, imageFormat: 'png', chromiumOptions});
+    if (preview) {
+      const scale = Math.min(1, 540 / config.width), images = [];
+      for (const sample of frames) {
+        const image = path.join(scratch, `frame-${sample}.png`);
+        await renderStill({serveUrl, composition, output: image, frame: sample, scale, imageFormat: 'png', chromiumOptions, puppeteerInstance: browser});
+        images.push(image);
+      }
+      // Compose one labeled sheet locally, keeping layout/duration at the confirmed canvas.
+      await execute('/opt/hermes/.venv/bin/python', ['-c', `
+from PIL import Image, ImageDraw, ImageFont
+import sys,json
+images=[Image.open(p).convert('RGB') for p in sys.argv[3:]]
+frames=json.loads(sys.argv[2]); w,h=images[0].size
+sheet=Image.new('RGB',(w*3,(h+32)*2),'#202020'); draw=ImageDraw.Draw(sheet)
+font=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',18)
+for i,img in enumerate(images):
+ x=(i%3)*w; y=(i//3)*(h+32)
+ sheet.paste(img,(x,y)); draw.text((x+8,y+h+5),f'{i+1} | {frames[i]/30:.2f}s',font=font,fill='white')
+sheet.save(sys.argv[1])
+`, staged, JSON.stringify(frames), ...images]);
+    } else if (still) {
+      await renderStill({serveUrl, composition, output: staged, frame, imageFormat: 'png', chromiumOptions, puppeteerInstance: browser});
     } else {
       await renderMedia({serveUrl, composition, outputLocation: staged, codec: 'h264',
-        pixelFormat: 'yuv420p', concurrency, crf: 20, chromiumOptions});
+        pixelFormat: 'yuv420p', concurrency, crf: 20, chromiumOptions, puppeteerInstance: browser});
     }
     await fs.rename(staged, output);
-    console.log(JSON.stringify({ok: true, ...config, concurrency, still, bytes: (await fs.stat(output)).size,
-      elapsedSeconds: Math.round((performance.now() - started) / 10) / 100}));
+    const result = {ok: true, ...config, concurrency, still, preview, frames, bytes: (await fs.stat(output)).size,
+      elapsedSeconds: Math.round((performance.now() - started) / 10) / 100};
+    console.log(JSON.stringify(result));
+    return result;
   } finally {
+    if (browser) await browser.close({silent:true});
     if (scratch) await fs.rm(scratch, {recursive: true, force: true});
     await unlock();
   }
