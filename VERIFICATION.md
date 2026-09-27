@@ -153,3 +153,9 @@ La duración, el formato y la presencia de audio se verifican automáticamente. 
 - API recreada con Compose tras comprobar cero tareas activas. Sin cambios de esquema SQL ni render adicional con LLM para estas pruebas. La síntesis Edge TTS y su montaje real ya se verificaron en la unidad anterior; esta suite valida la selección y el contexto, no la calidad de cada video.
 - Reversión: revertir la elección y validación de narration en brief/agent, las instrucciones SYSTEM/quark-narration, pruebas y BRIEF.md; reconstruir studio. No borrar conversaciones ni exportaciones.
 
+## 2026-09-26 — Fondo negro en Manim
+
+- El contexto privado de producción, SYSTEM y el perfil de la skill exigen fondo negro puro (#000000), también al editar. Configuración y cámara deben conservar BLACK; la paleta se aplica al primer plano, sin placas de fondo. Referencias y ejemplos upstream siguen intactos.
+- `docker compose run --rm --no-deps -v ./tests:/app/tests:ro -v ./backend:/app/backend:ro -e DATA_DIR=/tmp/quark-tests -e PYTHONPATH=/app studio pytest -q --tb=short tests/test_narration.py`: **11 aprobadas**, 1,64 s; comprueba la regla en el bloque Manim y su ausencia en el bloque Remotion.
+- Render real Cairo, 320×180, 12 fps, 1 segundo, sin LLM. FFmpeg extrajo el fotograma de 0,5 s; las cuatro esquinas eran RGB (0,0,0). skill_view nativo cargó la regla actualizada. Esto verifica la compatibilidad del perfil; la instrucción no es un filtro que recolorea videos existentes.
+- Reversión: revertir la regla en agent/SYSTEM y los perfiles Manim/quark-marketing, su atribución, prueba y documentación; reconstruir studio. No cambia otros motores ni exportaciones anteriores.

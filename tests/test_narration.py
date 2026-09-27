@@ -50,9 +50,11 @@ def test_hermes_receives_narration_skill_only_for_spoken_video(monkeypatch, medi
     assert (narration.SKILL in submitted[0]) == (medium == "video" and voice == "voice")
     assert ("# Producción de animaciones en este proyecto" in submitted[0]) == (medium == "video" and video_mode == "animation")
     assert ("# Producción de diseño animado en este proyecto" in submitted[0]) == (medium == "video" and video_mode in ("motion", "assets"))
+    assert ("Toda escena de Manim debe tener fondo negro puro (#000000)" in submitted[0]) == (medium == "video" and video_mode == "animation")
     if medium == "video" and video_mode == "animation":
         assert "cargá manimce-best-practices con tu herramienta de skills" in submitted[0]
         assert "Cairo por CPU, sin -p ni OpenGL" in submitted[0]
+        assert "config.background_color = BLACK y self.camera.background_color = BLACK" in submitted[0]
     if video_mode in ("motion", "assets"):
         assert "Cargá remotion-best-practices con tu herramienta de skills" in submitted[0]
         assert "render-video.mjs" in submitted[0]
