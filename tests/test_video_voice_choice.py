@@ -10,7 +10,8 @@ CUES = {"animation":"con diagramas", "motion":"con diseño animado", "clips":"co
 def setup(monkeypatch, client, mode, suffix="", guessed_voice="voice"):
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test")
     async def plan(*args):
-        return brief.Intake(answers=brief.Answers(subject="Café", medium="video", video_mode=mode,
+        store.add_message(args[0], "user", "Mi marca es Pausa, una cafetería para vecinos. Busco vender café.")
+        return brief.Intake(evidence={"brand":"Pausa", "audience":"vecinos", "objective":"vender café"}, answers=brief.Answers(brand="Pausa, cafetería", audience="vecinos", objective="sell", subject="Café", medium="video", video_mode=mode,
             seconds=10, aspect="story", narration=guessed_voice), missing=[])
     monkeypatch.setattr(brief, "assess", plan)
     pid = store.create_project("Elegir voz")["id"]

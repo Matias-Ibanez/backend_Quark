@@ -49,8 +49,8 @@ def test_bare_request_asks_for_content_without_claiming_delegated_choices(monkey
     project_id, saved = start(monkeypatch, message)
     state = client.get(f"/api/projects/{project_id}/brief").json()
     assert saved["status"] == "draft" and saved["answers"]["subject"] == ""
-    assert state["question"] == "subject"
-    assert [field["key"] for field in state["fields"]] == (["subject", "video_mode", "aspect", "seconds", "narration"] if saved["answers"]["medium"] == "video" else ["subject", "aspect"])
+    assert state["question"] == ("brand" if saved["answers"]["medium"] == "video" else "subject")
+    assert [field["key"] for field in state["fields"]] == (["brand", "subject", "audience", "objective", "video_mode", "aspect", "seconds", "narration"] if saved["answers"]["medium"] == "video" else ["subject", "aspect"])
     introduction = store.messages(project_id)[-1]["content"]
     assert "Antes de crear" in introduction and "preguntas" in introduction
     assert "criterio" not in introduction and "dejaste" not in introduction
@@ -187,7 +187,8 @@ def test_complete_request_goes_straight_to_generation(monkeypatch):
 
 def test_only_missing_fields_are_exposed_and_survive_reload(monkeypatch):
     async def plan(pid, message, function, seeded):
-        return brief.Intake(answers=brief.Answers(subject="Café", medium="video", aspect="story"), missing=["seconds"])
+        store.add_message(pid, "user", "Mi marca es Pausa, para vecinos. Busco vender café.")
+        return brief.Intake(evidence={"brand":"Pausa", "audience":"vecinos", "objective":"vender café"}, answers=brief.Answers(brand="Pausa", audience="vecinos", objective="sell", subject="Café", medium="video", aspect="story"), missing=["seconds"])
     monkeypatch.setattr(brief, "assess", plan)
     pid, saved = start(monkeypatch, "Creá un reel con textos animados sobre café sin voz")
     response = client.get(f"/api/projects/{pid}/brief").json()
@@ -280,6 +281,10 @@ def test_medium_question_includes_duration_and_slide_inputs(monkeypatch):
     pid, _ = start(monkeypatch, "Creá una pieza sobre café")
     fields = client.get(f"/api/projects/{pid}/brief").json()["fields"]
     assert {f["key"] for f in fields} == {"medium", "video_mode", "seconds", "slides", "narration"}
+    saved = brief.get(pid)
+    selected = client.post(f"/api/projects/{pid}/brief/reply", json={"id": saved["id"], "version": saved["version"], "message": "Video"})
+    assert selected.status_code == 200
+    assert {"brand", "audience", "objective"} <= {f["key"] for f in brief.read_brief(pid)["fields"]}
     assert next(f for f in fields if f["key"] == "seconds")["when"] == ["medium", "video"]
 
 
@@ -302,7 +307,7 @@ def test_structured_intake_validates_model_and_missing_duration(monkeypatch, inv
             return Response()
     monkeypatch.setattr(brief.httpx, "AsyncClient", Client)
     decision = asyncio.run(real_assess(project["id"], "Creá un reel sobre café", "content", brief.Answers(subject="Café", medium="video").model_dump()))
-    assert decision.missing == (["subject", "aspect"] if invalid else ["seconds"])
+    assert decision.missing == (["aspect"] if invalid else ["seconds"])
     with store.connection() as db:
         row = db.execute("SELECT * FROM aux_usage WHERE source='creative_intake' ORDER BY rowid DESC LIMIT 1").fetchone()
     assert row["status"] == ("failed" if invalid else "done") and row["input_tokens"] == 100

@@ -21,7 +21,7 @@ def test_topic_only_short_uses_mpt_and_imports_single_valid_mp4(monkeypatch, tmp
     project = store.create_project("Short sobre café")
     if aspect:
         brief.maybe_start(project["id"], "Un video con clips sobre café", "shorts", [], quiet=True)
-        answers = brief.Answers(subject="Café de especialidad", medium="video", video_mode="clips", aspect=aspect, narration=narration, seconds=seconds,
+        answers = brief.Answers(brand="Pausa, cafetería", subject="Café de especialidad", medium="video", video_mode="clips", aspect=aspect, narration=narration, seconds=seconds,
                                 facts="Molemos al pedir", cta="Vení a conocernos", copy_mode=copy_mode,
                                 copy_text="Tu pausa, tu café. Vení a conocernos." if copy_mode == "exact" else "")
         with store.connection() as db:
@@ -74,6 +74,7 @@ def test_topic_only_short_uses_mpt_and_imports_single_valid_mp4(monkeypatch, tmp
         stream = __import__("json").loads(probe.stdout)["streams"][0]
         assert (stream["width"], stream["height"]) == (1080, 1350)
     if aspect:
+        assert "Pausa, cafetería" in submitted[0]["custom_system_prompt"]
         assert "clips de la biblioteca" in submitted[0]["custom_system_prompt"]
         assert "Molemos al pedir" in submitted[0]["custom_system_prompt"] and "Vení a conocernos" in submitted[0]["custom_system_prompt"]
         assert f"Duración objetivo: {seconds} segundos" in script_prompt

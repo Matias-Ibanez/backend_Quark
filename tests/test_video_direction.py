@@ -11,7 +11,8 @@ from backend.app import app
 def prepare(monkeypatch, message, *, guessed_mode="clips"):
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test")
     async def plan(pid, request, function, seeded):
-        return brief.Intake(answers=brief.Answers(subject="Café de especialidad", medium="video", aspect="story", seconds=20, video_mode=guessed_mode), missing=[])
+        store.add_message(pid, "user", "Mi marca es Pausa, una cafetería para vecinos. Busco vender café.")
+        return brief.Intake(evidence={"brand":"Pausa", "audience":"vecinos", "objective":"vender café"}, answers=brief.Answers(brand="Pausa, cafetería", audience="vecinos", objective="sell", subject="Café de especialidad", medium="video", aspect="story", seconds=20, video_mode=guessed_mode), missing=[])
     monkeypatch.setattr(brief, "assess", plan)
     pid = store.create_project("Dirección de video")["id"]
     return pid, asyncio.run(agent.chat(pid, message))
