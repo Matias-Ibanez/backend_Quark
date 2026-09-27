@@ -45,12 +45,14 @@ services:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       HERMES_WRITE_SAFE_ROOT: /workspace
       U2NET_HOME: /opt/data/rembg-models
+      QUARK_REMOTION_CONCURRENCY: ${QUARK_REMOTION_CONCURRENCY:-2}
     volumes:
       - hermes-data:/opt/data
       - ./hermes/config.yaml:/opt/data/config.yaml:ro
       - ./hermes/skills/quark-marketing:/opt/data/skills/quark-marketing:ro
       - ./hermes/skills/quark-narration:/opt/data/skills/quark-narration:ro
       - ./hermes/skills/manimce-best-practices:/opt/data/skills/manimce-best-practices:ro
+      - ./hermes/skills/remotion-best-practices:/opt/data/skills/remotion-best-practices:ro
       - ./hermes/skills/quark-documents:/opt/data/skills/quark-documents:ro
       - ./hermes/skills/quark-static-post:/opt/data/skills/quark-static-post:ro
       - ./hermes/skills/quark-style-editorial:/opt/data/skills/quark-style-editorial:ro
