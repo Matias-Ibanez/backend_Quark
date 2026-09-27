@@ -25,6 +25,16 @@ test('batch renders exact canvases with one browser and preserves previews on va
     assert.equal(rejected.ok, false);
     assert.match(rejected.results[0].issues[0], /Canvas size mismatch/);
     assert.deepEqual(fs.readFileSync(output), before);
+    fs.writeFileSync(source, '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320"><text x="10" y="350" font-size="30">CTA recortado</text></svg>');
+    const clipped = await render([{source, output, width:320, height:320}]);
+    assert.equal(clipped.ok, false);
+    assert.match(clipped.results[0].issues.join(' '), /Out of canvas: CTA recortado/);
+    assert.deepEqual(fs.readFileSync(output), before);
+    fs.writeFileSync(source, '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320"><text x="20" y="314" font-size="20">CTA al borde</text></svg>');
+    const unsafe = await render([{source, output, width:320, height:320}]);
+    assert.equal(unsafe.ok, false);
+    assert.match(unsafe.results[0].issues.join(' '), /3% safe margin: CTA al borde/);
+    assert.deepEqual(fs.readFileSync(output), before);
     assert.equal(fs.readdirSync(dir).some(name => name.startsWith('.render-')), false);
   } finally { fs.rmSync(dir, {recursive:true, force:true}); }
 });

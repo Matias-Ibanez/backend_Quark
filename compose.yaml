@@ -9,6 +9,7 @@ services:
       - path: .env
         required: false
     environment:
+      QUARK_POST_REASONING: ${QUARK_POST_REASONING:-off}
       WEB_PORT: ${FRONTEND_PORT:-8010}
       HERMES_BASE_URL: http://hermes:8642/v1
       HERMES_API_KEY: ${HERMES_API_KEY:-lienzo-local-development-key}

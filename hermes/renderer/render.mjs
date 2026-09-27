@@ -66,11 +66,13 @@ export async function render(jobs) {
           for (const image of document.images || []) {
             if (!image.naturalWidth || !image.naturalHeight) problems.push(`Missing image: ${image.getAttribute('src')}`);
           }
-          for (const element of document.querySelectorAll('[data-check]')) {
-            const name = element.getAttribute('data-check') || element.tagName.toLowerCase();
+          for (const element of document.querySelectorAll('svg text, [data-check]')) {
+            const name = element.getAttribute('data-check') || element.textContent.trim().slice(0, 70) || element.tagName.toLowerCase();
             const rect = element.getBoundingClientRect();
             if (rect.left < -1 || rect.top < -1 || rect.right > width + 1 || rect.bottom > height + 1) {
               problems.push(`Out of canvas: ${name}`);
+            } else if (element.matches('svg text') && (rect.left < width * 0.03 || rect.right > width * 0.97 || rect.top < height * 0.03 || rect.bottom > height * 0.97)) {
+              problems.push(`Text needs a 3% safe margin: ${name}`);
             }
             const style = getComputedStyle(element);
             const clipsX = ['hidden', 'clip', 'auto', 'scroll'].includes(style.overflowX);

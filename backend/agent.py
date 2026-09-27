@@ -14,7 +14,7 @@ import httpx
 from fastapi import HTTPException
 
 from . import costs, guardrails, store, brief, marketing_profile, narration
-from hermes.renderer.svg_artifact import InvalidSVG, finalize_svg
+from hermes.renderer.svg_artifact import InvalidSVG, finalize_svg, unexpected_copy
 
 MODEL = "deepseek-flash"
 SYSTEM_PROMPT = Path("/app/SYSTEM.md").read_text(encoding="utf-8") if Path("/app/SYSTEM.md").exists() else (Path(__file__).parents[1] / "hermes" / "SYSTEM.md").read_text(encoding="utf-8")
@@ -306,6 +306,15 @@ Función elegida: {function}."""
         prompt += "\n\n# Producción de diseño animado en este proyecto\nCargá remotion-best-practices con tu herramienta de skills y leé primero su perfil QUARK Docker. Usá Remotion para tipografía, productos, transiciones y montaje con originales; no sustituyas esta dirección por Manim ni stock. Guardá Video.tsx como componente React con export default y usá el renderizador preinstalado node /opt/quark-renderer/render-video.mjs SOURCE.tsx OUTPUT.mp4 WIDTH HEIGHT SECONDS con las dimensiones y duración confirmadas. No instales paquetes ni abras Studio. Renderizá e inspeccioná fotogramas PNG de los distintos bloques y corregí antes de exportar final.mp4 completo. Conservá la fuente para iterar. Las escenas deben desarrollar la idea durante toda la duración, no mantener una placa inmóvil para llegar al tiempo. Si hay voz, usá quark-narration y la guía de audio de la skill; la música elegida se mezcla después desde la aplicación."
     elif wants_video:
         prompt += "\n\n# Producción de animaciones en este proyecto\nAntes de escribir o modificar una animación, cargá manimce-best-practices con tu herramienta de skills. Leé su perfil QUARK Docker y las guías pertinentes de rules/: composición, texto, transiciones y timing. Usá Manim Community con Cairo por CPU, sin -p ni OpenGL. Toda escena de Manim debe tener fondo negro puro (#000000): configurá config.background_color = BLACK y self.camera.background_color = BLACK en cada escena. No uses fondos de marca, degradados ni placas de pantalla completa que tapen el negro; aplicá la paleta únicamente a textos, figuras y gráficos. Mantené esta regla al editar y comprobá el fondo en los fotogramas de revisión. Conservá las dimensiones confirmadas tanto en píxeles como en el encuadre lógico. No cargues obligatoriamente manim-video ni sus presets: la guía principal es manimce-best-practices. Para un montaje con originales, aplicá esto solo si agregás animaciones con Manim."
+    if wants_image and not wants_video:
+        prompt += "\n\n# Flujo eficiente para publicaciones\nLas guías quark-marketing y quark-static-post ya están incluidas arriba: aplicalas sin volver a cargarlas. Consultá solo una skill de estilo acorde al pedido. Conservá el SVG editable y no sacrifiques composición ni revisión visual por velocidad. Agrupá la escritura de plan, SVG y caption en una sola operación de archivos/terminal. Finalizá el SVG seguro y renderizá directamente final.png; inspeccioná ese PNG y corregí/rerenderizá únicamente si hay un problema. Si la fuente no cambió tras revisarlo, ese mismo PNG es la entrega: no hagas otro render ni dupliques draft/final. Para un carrusel finalizá primero todas las fuentes y usá render.mjs --batch con un manifiesto JSON en el directorio de proyecto; cada job tiene source, output, width y height confirmados. Inspeccioná todas las láminas y rerenderizá solo las modificadas. No instales paquetes ni consultes guías de video para una imagen. Los hechos, el texto exacto, las dimensiones y la entrega SVG+PNG siguen siendo obligatorios."
+    copy_policy = None
+    if wants_image and creative_brief and creative_brief["copy_mode"] == "exact":
+        copy_policy = {"exact_text": creative_brief["copy_text"], "provided_text": message + " " + (saved_brief["request"] if saved_brief else "") + " " + " ".join(user_history) + " " + json.dumps(brand, ensure_ascii=False)}
+        policy_path = folder / "copy-policy.json"
+        policy_path.write_text(json.dumps(copy_policy, ensure_ascii=False), encoding="utf-8")
+        policy_path.chmod(0o640)
+        prompt += "\nTexto exacto en la publicación: limitá las frases visibles al copy_text confirmado, además del nombre de marca o identificación del rubro ya aportados. Podés separar líneas para la composición, pero no agregues eslóganes, texto de apoyo, beneficios ni llamados a la acción nuevos, aunque parezcan útiles. El caption puede ir separado; no lo incorpores al SVG como texto adicional. Revisá esto en la vista PNG antes de terminar. La API dejó copy-policy.json con el texto confirmado: pasá ese archivo como tercer argumento adicional de svg_artifact.py al finalizar cada SVG. Si rechaza frases no pedidas, quitá esas frases del source.svg y repetí la validación antes de renderizar; no edites la política para permitirlas."
     if wants_video and require_audio:
         prompt += "\n\n# Guía de guion y locución\n" + narration.SKILL
     if record_user:
@@ -313,9 +322,14 @@ Función elegida: {function}."""
     store.add_message(project_id, "assistant", guardrails.ACK_REPLY)
     headers = {"Authorization": f'Bearer {os.getenv("HERMES_API_KEY", "")}', "X-Hermes-Session-Id": f"quark-{project_id}", "X-Hermes-Session-Key": f"quark:project:{project_id}"}
     url = os.getenv("HERMES_BASE_URL", "http://hermes:8642/v1").rstrip("/") + "/chat/completions"
+    payload = {"model": MODEL, "provider": "deepseek", "messages": [{"role": "system", "content": prompt}, {"role": "user", "content": message}], "max_tokens": 8000}
+    # Only static production changes thinking; videos and ordinary chat keep Hermes defaults.
+    post_reasoning = os.getenv("QUARK_POST_REASONING", "off").strip().lower()
+    if wants_image and not wants_video and post_reasoning == "off":
+        payload["model_options"] = {"reasoning": {"enabled": False}}
     try:
         async with httpx.AsyncClient(timeout=600) as client:
-            response = await client.post(url, headers=headers, json={"model": MODEL, "provider": "deepseek", "messages": [{"role": "system", "content": prompt}, {"role": "user", "content": message}], "max_tokens": 8000})
+            response = await client.post(url, headers=headers, json=payload)
         if response.status_code != 200:
             log.warning("Hermes devolvió HTTP %s", response.status_code)
             raise HTTPException(502, "No pude completar el pedido. Probá de nuevo en unos minutos.")
@@ -338,6 +352,19 @@ Función elegida: {function}."""
     recovered = False
     if wants_video and not require_audio and (not final_video.is_file() or final_unchanged):
         recovered = assemble_rendered_scenes(folder, render_started_ns, target_seconds, require_audio)
+    if copy_policy:
+        names = [f"final-{i:02}.svg" for i in range(1, creative_brief["slides"] + 1)] if creative_brief["medium"] == "carousel" else ["final.svg"]
+        for name in names:
+            path = folder / name
+            if not path.is_file():
+                continue
+            try:
+                violations = unexpected_copy(finalize_svg(path.read_bytes()), **copy_policy)
+            except (InvalidSVG, OSError, ValueError):
+                continue  # The existing artifact gate will reject invalid/missing SVGs.
+            if violations:
+                log.warning("Texto añadido a copy exacto: project=%s count=%d", project_id, len(violations))
+                raise HTTPException(422, "No pude dejar el texto exactamente como lo pediste. Podés reintentar la pieza.")
     media = import_hermes_media(project_id, folder, before, target_seconds, require_audio, preferred_kind, require_vector=wants_image and not wants_video,
                                slides=creative_brief["slides"] if creative_brief and creative_brief["medium"] == "carousel" else None,
                                dimensions=creative_brief["dimensions"] if creative_brief else None,

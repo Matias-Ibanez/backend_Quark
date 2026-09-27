@@ -5,6 +5,8 @@ import binascii
 import io
 import re
 import sys
+import json
+import unicodedata
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from urllib.parse import unquote, urlparse
@@ -116,10 +118,33 @@ def finalize_svg(raw: bytes, *, embed_local: bool = False) -> bytes:
     return result
 
 
+def unexpected_copy(svg, exact_text, provided_text):
+    """Reject added visible phrases when copy is exact; allow explicit short brand labels."""
+    def words(value):
+        value = unicodedata.normalize("NFKD", value.casefold())
+        value = "".join(c for c in value if not unicodedata.combining(c))
+        return " ".join(re.findall(r"\w+", value))
+    quoted = re.findall(r"«([^»]+)»", exact_text)
+    expected = [words(text) for text in (quoted or [exact_text])]
+    supplied = " " + words(provided_text) + " "
+    issues = []
+    for node in ET.fromstring(svg).iter("{" + SVG_NS + "}text"):
+        text = " ".join(node.itertext()).strip()
+        normalized = words(text)
+        if not normalized:
+            continue
+        if any(" " + normalized + " " in " " + allowed + " " for allowed in expected):
+            continue
+        if len(normalized.split()) <= 4 and " " + normalized + " " in supplied:
+            continue
+        issues.append(text[:200])
+    return issues
+
+
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        raise SystemExit("Usage: python svg_artifact.py SOURCE.svg FINAL.svg")
-    source, output = (Path(item).resolve() for item in sys.argv[1:])
+    if len(sys.argv) not in (3, 4):
+        raise SystemExit("Usage: python svg_artifact.py SOURCE.svg FINAL.svg [COPY_POLICY.json]")
+    source, output = (Path(item).resolve() for item in sys.argv[1:3])
     workspace = Path("/workspace/hermes").resolve()
     if workspace not in source.parents or workspace not in output.parents:
         raise SystemExit("Source and output must be inside /workspace/hermes")
@@ -127,6 +152,14 @@ if __name__ == "__main__":
         raise SystemExit("Expected SVG source and output")
     try:
         result = finalize_svg(source.read_bytes(), embed_local=True)
+        if len(sys.argv) == 4:
+            policy_path = Path(sys.argv[3]).resolve()
+            if workspace not in policy_path.parents or policy_path.stat().st_size > 100000:
+                raise InvalidSVG("Copy policy must be a bounded workspace file")
+            policy = json.loads(policy_path.read_text(encoding="utf-8"))
+            extra = unexpected_copy(result, policy["exact_text"], policy["provided_text"])
+            if extra:
+                raise InvalidSVG("Remove unrequested text: " + "; ".join(extra))
     except InvalidSVG as exc:
         raise SystemExit(f"SVG rejected: {exc}") from exc
     output.write_bytes(result)
