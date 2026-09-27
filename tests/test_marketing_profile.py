@@ -20,6 +20,8 @@ from backend import agent, guardrails, marketing_profile, store
     ("¿Podés hacer videos?", marketing_profile.VISUAL),
     ("¿Qué formatos ofrecés?", marketing_profile.VISUAL),
     ("¿Puedes recortar fotos?", marketing_profile.PHOTOS),
+    ("¿Qué podés hacer con mis documentos?", marketing_profile.DOCUMENTS),
+    ("¿Puedes leer un PDF?", marketing_profile.DOCUMENTS),
     ("¿Podés redactar textos?", marketing_profile.TEXTS),
     ("¿Puedes organizar campañas?", marketing_profile.PLANNING),
     ("¿Podés publicar en Instagram?", marketing_profile.INSTAGRAM),
@@ -41,6 +43,7 @@ def test_product_questions_get_relevant_safe_guidance(question, expected):
     "¿Podés hacer un reel de 30 segundos para mi tienda?",
     "¿Podés recortar esta foto?",
     "¿Qué puedes hacer? Quiero una publicación para Instagram",
+    "¿Podés crear un video sobre mi PDF adjunto?",
 ])
 def test_concrete_requests_are_not_replaced_by_an_introduction(message):
     assert guardrails.direct_reply(message) is None

@@ -149,7 +149,12 @@ def get_asset(asset_id):
         row = db.execute("SELECT * FROM assets WHERE id=?", (asset_id,)).fetchone()
     if not row:
         raise HTTPException(404, "Recurso no encontrado")
-    return dict(row)
+    result = dict(row)
+    if result.get("kind") == "document":
+        metadata = DATA / "assets" / Path(result["filename"]).with_suffix(".json")
+        if metadata.is_file():
+            result["document"] = json.loads(metadata.read_text(encoding="utf-8"))
+    return result
 
 
 def add_asset(name, filename, kind, width=None, height=None, parent=None, asset_id=None):
@@ -190,6 +195,8 @@ def add_message(project_id, role, content, media=None):
 
 def add_user_message(project_id, content, asset_ids=None):
     """Keep the submitted resources on their own turn, not only on the project."""
+    if asset_ids:
+        attach_assets(project_id, list(dict.fromkeys(asset_ids)))
     media = ["/media/assets/" + get_asset(asset_id)["filename"] for asset_id in dict.fromkeys(asset_ids or [])]
     add_message(project_id, "user", content, media=media)
 

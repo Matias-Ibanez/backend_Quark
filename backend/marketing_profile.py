@@ -10,6 +10,7 @@ CAPABILITIES = (
     "Soy QUARK, tu agente de marketing. Puedo acompañarte con:\n\n"
     "- **Contenido visual:** publicaciones, banners, carruseles, reels y videos cortos.\n"
     "- **Tus fotos:** recortar o separar el producto del fondo e incorporarlo a una pieza.\n"
+    "- **Tus documentos:** transformar el contenido de un PDF en una publicación o un video para redes.\n"
     "- **Textos:** títulos, descripciones, llamados a la acción y respuestas para tus clientes.\n"
     "- **Planificación:** ideas de campañas, propuestas para tu público y calendarios de contenido.\n"
     "- **Mejoras:** ajustar el diseño, el mensaje o el ritmo de una pieza que ya hicimos.\n\n"
@@ -39,6 +40,11 @@ PHOTOS = (
     "y combinarla con textos y elementos gráficos para una publicación. Conservamos la foto original para seguir ajustando.\n\n"
     "Por ejemplo, una remera puede ser la protagonista de una pieza con el nombre de tu marca y un llamado a consultar. "
     "¿Qué producto querés mostrar?"
+)
+DOCUMENTS = (
+    "Podés adjuntar un PDF o arrastrarlo al chat. Puedo usar su contenido para preparar "
+    "una publicación, un carrusel o un video para redes, eligiendo las ideas que mejor comuniquen tu mensaje.\n\n"
+    "Si alguna parte no se puede leer, te lo indicaré antes de usarla. Podés decirme qué páginas o temas querés destacar."
 )
 TEXTS = (
     "Puedo redactar y mejorar títulos, descripciones de publicaciones, mensajes de promociones, "
@@ -75,6 +81,7 @@ LIMITS = (
 
 # Narrow patterns select known product information; production requests keep their normal route.
 REPLIES = [
+    (r"\b(?:(?:que|como|para que).{0,65}(?:documentos?|pdf)|(?:puedes|podes) (?:leer|usar|transformar).{0,30}(?:documentos?|pdf))\b", DOCUMENTS),
     (r"\b(?:que (?:cosas )?(?:puedes|podes|podrias|sabes) hacer|que (?:eres|sos) capaz de hacer|(?:cuales|que) son tus (?:capacidades|funciones)|que (?:ofreces|haces)|para que (?:sirves|servis)|(?:en que|como) (?:me )?(?:puedes|podes) ayudar(?:me)?)\b", CAPABILITIES),
     (r"\b(?:que (?:no puedes|no podes) hacer|(?:cuales|que) son tus (?:limites|limitaciones))\b", LIMITS),
     (r"\b(?:quien (?:eres|sos)|que (?:eres|sos)|como te llamas|presentate|quien te creo)\b", IDENTITY),

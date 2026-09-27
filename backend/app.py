@@ -167,6 +167,10 @@ def upload(file: UploadFile = File(...)):
         raise HTTPException(413, "El límite es de 30 MB por archivo")
     asset_id = store.uid()
     extension = Path(file.filename or "").suffix.lower()
+    if extension == ".pdf" or file.content_type == "application/pdf":
+        from .documents import process_pdf
+        process_pdf(raw, asset_id)
+        return store.add_asset(file.filename or "Documento.pdf", asset_id + ".pdf", "document", asset_id=asset_id)
     if extension in (".mp3", ".wav", ".m4a", ".ogg"):
         filename = asset_id + extension
         path = store.DATA / "assets" / filename
