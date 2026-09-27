@@ -263,7 +263,12 @@ def read_brief(project_id: str):
             fields.append(next(f for f in FIELDS if f["key"] == child))
     visible_keys = {f["key"] for f in fields}
     fields = [{k: v for k, v in f.items() if k != "when" or f["when"][0] in visible_keys} for f in fields]
-    return {"brief": current, "fields": fields, "groups": ["Contenido y público", "Formato y destino", "Identidad visual", "Texto y revisión"]}
+    fields.sort(key=lambda f: next(i for i, known in enumerate(FIELDS) if known["key"] == f["key"]))
+    with store.connection() as db:
+        answered = [r[0] for r in db.execute("SELECT field FROM brief_responses WHERE brief_id=?", (current["id"],))] if current else []
+    pending = [f for f in fields if f["key"] not in answered and (not f.get("when") or current["answers"].get(f["when"][0]) == f["when"][1])] if current else []
+    return {"brief": current, "fields": fields, "answered": answered, "question": pending[0]["key"] if pending else None,
+            "groups": ["Contenido y público", "Formato y destino", "Identidad visual", "Texto y revisión"]}
 
 
 class UpdateBrief(Strict):
@@ -271,6 +276,54 @@ class UpdateBrief(Strict):
     version: int = Field(ge=1)
     action: Literal["save", "confirm", "cancel"] = "save"
     answers: Answers
+    field: str | None = Field(default=None, max_length=48)
+
+
+class Reply(Strict):
+    id: str
+    version: int = Field(ge=1)
+    message: str = Field(min_length=1, max_length=6000)
+
+
+@router.post("/api/projects/{project_id}/brief/reply")
+async def reply_inline(project_id: str, body: Reply):
+    state = read_brief(project_id)
+    current = state["brief"]
+    if not current or current["id"] != body.id or current["version"] != body.version or current["status"] not in ("draft", "failed"):
+        raise HTTPException(409, "La conversación cambió. Volvé a cargarla para continuar.")
+    direct = guardrails.direct_reply(body.message)
+    if direct:
+        store.add_user_message(project_id, body.message)
+        store.add_message(project_id, "assistant", direct)
+        return {"brief": current, "run": None}
+    normalized = guardrails.normalize(body.message.strip())
+    if normalized in ("cancelar", "cancelar pedido"):
+        return await update_brief(project_id, UpdateBrief(id=body.id, version=body.version, action="cancel", answers=current["answers"]))
+    if not state["question"]:
+        if normalized in ("crear", "si", "si crear", "confirmar", "confirmar y crear", "dale"):
+            return await update_brief(project_id, UpdateBrief(id=body.id, version=body.version, action="confirm", answers=current["answers"]))
+        raise HTTPException(422, "Podés crear la pieza o revisar una respuesta antes de continuar.")
+    field = next(f for f in state["fields"] if f["key"] == state["question"])
+    value = body.message.strip()
+    if field.get("choices"):
+        found = next((key for key, label in field["choices"] if normalized == guardrails.normalize(key) or
+                      normalized == guardrails.normalize(label) or normalized == guardrails.normalize(label.split(" · ")[0])), None)
+        if not found:
+            found = next((key for key, label in field["choices"] if normalized in ("1:1", "4:5", "9:16", "16:9") and normalized in label), None)
+        if not found:
+            raise HTTPException(422, "Elegí una de las opciones de la pregunta o escribí su nombre.")
+        value = found
+    elif field.get("type") == "number":
+        match = re.fullmatch(r"\s*(\d{1,3})\s*(?:segundos?|seg|s|láminas?|laminas?|páginas?|paginas?)?\s*", value, re.I)
+        if not match:
+            raise HTTPException(422, "Escribí una cantidad, por ejemplo 30.")
+        value = int(match[1])
+    answers = dict(current["answers"], **{field["key"]: value})
+    try:
+        parsed = Answers.model_validate(answers)
+    except ValueError:
+        raise HTTPException(422, "Revisá tu respuesta: usá los valores y límites indicados en la pregunta.")
+    return await update_brief(project_id, UpdateBrief(id=body.id, version=body.version, action="save", answers=parsed, field=field["key"]))
 
 
 @router.put("/api/projects/{project_id}/brief")
@@ -283,6 +336,14 @@ async def update_brief(project_id: str, body: UpdateBrief):
         raise HTTPException(422, "Completá estos datos antes de crear: " + "; ".join(titles[key] for key in body.answers.missing_required()))
     if body.action == "confirm" and guardrails.BARE_MEDIA_PATTERN.fullmatch(guardrails.plain_text(body.answers.subject)):
         raise HTTPException(422, "Indicá el producto, tema o idea; pedir una imagen no define su contenido.")
+    if body.field:
+        exposed = {f["key"]: f for f in read_brief(project_id)["fields"]}
+        if body.field not in exposed:
+            raise HTTPException(422, "Esa pregunta ya no está disponible. Recargá la conversación.")
+        selected = exposed[body.field]
+        value = body.answers.model_dump()[body.field]
+        if (selected.get("required") or body.field in ("copy_text", "colors")) and not str(value).strip():
+            raise HTTPException(422, "Escribí tu respuesta para continuar.")
     with store.connection() as db:
         if db.execute("SELECT 1 FROM runs WHERE project_id=? AND status='running'", (project_id,)).fetchone():
             raise HTTPException(409, "Esperá a que termine el pedido actual.")
@@ -296,6 +357,20 @@ async def update_brief(project_id: str, body: UpdateBrief):
             body.answers.model_dump_json(), "confirmed" if body.action == "confirm" else "cancelled" if body.action == "cancel" else "draft", store.now(), project_id, body.id, body.version))
         if not updated.rowcount:
             raise HTTPException(409, "Los detalles cambiaron. Recargá las opciones.")
+        if body.action == "confirm":
+            db.execute("INSERT INTO messages (id,project_id,role,content,created_at,media) VALUES (?,?,?,?,?,?)",
+                       (store.uid(), project_id, "user", "Crear la pieza con mis respuestas.", store.now(), "[]"))
+        if body.action == "save" and body.field:
+            db.execute("INSERT OR IGNORE INTO brief_responses VALUES (?,?)", (current["id"], body.field))
+            label = next((label for key, label in selected.get("choices") or [] if key == value), str(value))
+            db.execute("INSERT INTO messages (id,project_id,role,content,created_at,media) VALUES (?,?,?,?,?,?)",
+                       (store.uid(), project_id, "assistant", selected["title"], store.now(), "[]"))
+            db.execute("INSERT INTO messages (id,project_id,role,content,created_at,media) VALUES (?,?,?,?,?,?)",
+                       (store.uid(), project_id, "user", label, store.now(), "[]"))
+            # A parent choice can introduce a new mandatory input previously answered differently.
+            if body.field in ("palette", "copy_mode", "medium"):
+                children = {"palette": ["colors"], "copy_mode": ["copy_text"], "medium": ["seconds", "slides", "narration", "music"]}[body.field]
+                db.executemany("DELETE FROM brief_responses WHERE brief_id=? AND field=?", [(current["id"], child) for child in children])
     if body.action != "confirm":
         return {"brief": get(project_id), "run": None}
     from .workspace import start_run
@@ -330,6 +405,7 @@ def reopen(project_id: str):
         raise HTTPException(409, "El pedido no se puede editar todavía.")
     with store.connection() as db:
         db.execute("DELETE FROM brief_questions WHERE brief_id=?", (current["id"],))
+        db.execute("DELETE FROM brief_responses WHERE brief_id=?", (current["id"],))
         if db.execute("SELECT 1 FROM runs WHERE project_id=? AND status='running'", (project_id,)).fetchone():
             raise HTTPException(409, "Esperá a que termine el pedido actual.")
         updated = db.execute("UPDATE project_briefs SET status='draft',version=version+1,updated_at=? WHERE project_id=? AND id=? AND status IN ('done','cancelled')", (store.now(), project_id, current["id"]))

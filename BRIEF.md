@@ -1,19 +1,17 @@
 # Definir los detalles antes de crear una pieza
 
-El agente evalúa el pedido y los últimos mensajes de la conversación antes de producir una pieza nueva. El formulario «Detalles de la pieza» aparece únicamente si faltan decisiones necesarias, y muestra solo esas preguntas. Si el pedido alcanza, la producción empieza directamente. Las elecciones se guardan por conversación y llegan al agente como contexto estructurado.
+El agente evalúa el pedido, los adjuntos y los últimos mensajes antes de producir una pieza nueva. Si falta información, pregunta una decisión por vez dentro del chat. Podés tocar una opción o responder desde el cuadro de mensajes. Si el pedido alcanza, la producción empieza directamente. Las elecciones se guardan por conversación y llegan al agente como contexto estructurado.
 
 ## Recorrido
 
 1. Escribí el pedido. Se extraen tema, público, objetivo, formato y preferencias que ya diste; no se vuelven a preguntar por rutina.
-2. Completá **Contenido y público**: tema, audiencia y objetivo (informar, vender, explicar o generar interacción).
-3. Elegí **Formato y destino**: imagen, video o carrusel; Instagram, TikTok, YouTube, LinkedIn o web; 4:5, 9:16, 1:1 o 16:9. Video admite 5–180 segundos; carrusel, 2–10 láminas.
-4. Definí **Identidad visual**: editorial, producto, tipográfica, minimalista o impactante; paleta de marca, neutra, cálida, fría, de contraste o propia; tipografía sans, serif, display o de marca. Podés delegar estas decisiones. Elegí también el tono y si usar los adjuntos.
-5. Definí **Texto y revisión**: redacción automática o texto exacto, llamada a la acción, hechos confirmados y restricciones. Al elegir **Usá exactamente mi texto** se abre el campo para escribirlo. Si el agente pide directamente el texto, ese campo ya aparece editable. Para video elegí voz y si vas a agregar música después.
-6. Revisá el resumen y pulsá **Confirmar y crear**. Para cambiar opciones después, usá **Modificar formato o estilo de esta pieza**.
+2. Respondé la pregunta pendiente: tema, formato, duración u otra decisión indispensable. Solo se muestra una a la vez. Las opciones de formato incluyen una referencia visual de proporción; las paletas incluyen muestras.
+3. Cuando no queden preguntas, podés abrir **Revisar mis respuestas** y editar una respuesta individual. Pulsá **Crear mi pieza** o escribí `crear` para empezar. Cancelar conserva la conversación y no genera contenido.
+4. El resultado aparece como tarjeta compacta en su mensaje. Un clic abre la vista previa; **Archivos** reúne los recursos de ese chat y **Biblioteca** reúne las piezas generadas. Para iterar, escribí el cambio en la misma conversación o usá **Seguir editando** desde la vista previa.
 
-Los pasos 2–5 enumeran las opciones disponibles; solo aparecen los campos que el agente considera pendientes. Por ejemplo, «creame una imagen» sin contexto pregunta tema y formato; «creá un reel sobre café» puede preguntar solo duración; una imagen cuadrada con tema y dirección visual puede pasar directamente a producción. Paleta y tipografía pueden decidirse automáticamente. Pedir los colores de una marca sin aportarlos requiere aclararlos. La evaluación depende del modelo y puede equivocarse; se puede cancelar o corregir por chat.
+Las decisiones disponibles incluyen público, objetivo, canal, imagen/video/carrusel, proporción, duración de 5–180 segundos, 2–10 láminas, estilo, paleta, tipografía, tono, adjuntos, texto exacto, llamada a la acción, datos confirmados, voz y música. Solo se pregunta lo que falta. Por ejemplo, «creame una imagen» sin contexto pregunta tema y formato; «creá un reel sobre café» puede preguntar solo duración; una imagen cuadrada con tema y dirección visual puede pasar directamente a producción. La evaluación depende del modelo y puede equivocarse; se puede cancelar o corregir por chat.
 
-Cada «Guardar y continuar» persiste las respuestas. Los cambios de un paso todavía no guardado no sobreviven a una recarga. Cancelar no genera contenido. Las revisiones por chat conservan el contexto; pedir otra pieza vuelve a evaluar qué falta. El botón para modificar una pieza manualmente conserva el editor completo.
+Cada opción elegida o respuesta enviada se guarda y queda en el historial. El texto todavía sin enviar se conserva durante las actualizaciones periódicas, pero no al recargar. Una versión guardada en otra pestaña reemplaza el borrador anterior; los envíos con versiones desactualizadas se rechazan. Preguntar quién es QUARK durante las aclaraciones no consume la respuesta pendiente.
 
 La evaluación estructurada usa DeepSeek sin herramientas y registra tokens y costo en `aux_usage`, con origen `creative_intake`. Un pedido mínimo sin tema ni historial abre las preguntas básicas sin llamar al modelo. Ante un fallo o JSON inválido se muestran tema y formato como respaldo; no se produce a partir de una evaluación inválida.
 
@@ -27,6 +25,6 @@ Las imágenes y cada lámina del carrusel conservan SVG y PNG. Un carrusel incom
 
 ## Contrato entre repositorios
 
-`GET /api/projects/{id}/brief` devuelve el estado, grupos y preguntas con sus opciones. `PUT` en esa ruta guarda, cancela o confirma con `id`, `version`, `answers` y `action`. Confirmar inicia una ejecución y devuelve `run`; no se expone ninguna clave al frontend. `POST /api/projects/{id}/brief/reopen` permite revisar un brief terminado. La interfaz está en `landing-quark`; este repositorio conserva la validación, memoria y generación.
+`GET /api/projects/{id}/brief` conserva el contrato anterior y agrega `question` (clave pendiente o null) y `answered`. `PUT` guarda, cancela o confirma con `id`, `version`, `answers`, `action` y opcionalmente `field` para guardar una respuesta individual. `POST /api/projects/{id}/brief/reply` acepta `id`, `version` y `message` desde el compositor: interpreta opciones, proporciones y cantidades sin llamar al modelo. Confirmar inicia una sola ejecución y devuelve `run`; las claves permanecen en el servidor. `POST /api/projects/{id}/brief/reopen` permite revisar una pieza terminada. La tabla `brief_responses` conserva el avance, sin modificar mensajes o exportaciones anteriores.
 
 Para volver al flujo anterior se pueden revertir los commits de esta implementación en ambos repositorios. La tabla `project_briefs` puede permanecer sin uso; no se borran conversaciones ni exportaciones anteriores.

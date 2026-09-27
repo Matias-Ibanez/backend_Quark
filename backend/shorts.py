@@ -41,7 +41,7 @@ def topic(message, function):
     return text.strip() or message.strip()
 
 
-async def create_short(project_id, message, function, asset_ids, metrics):
+async def create_short(project_id, message, function, asset_ids, metrics, *, record_user=True):
     if not os.getenv("PEXELS_API_KEY", "").strip():
         raise HTTPException(503, "Para crear shorts falta configurar la biblioteca de clips del servicio.")
     creative_brief = brief.production_context(project_id)
@@ -49,7 +49,8 @@ async def create_short(project_id, message, function, asset_ids, metrics):
     if len(subject) < 3 or len(subject) > 300:
         raise HTTPException(422, "Escribí un tema de entre 3 y 300 caracteres para el short.")
     store.attach_assets(project_id, asset_ids or [])
-    store.add_user_message(project_id, message, asset_ids)
+    if record_user:
+        store.add_user_message(project_id, message, asset_ids)
     store.add_message(project_id, "assistant", "Entendido, estoy preparando tu short.")
     before_balance = await deepseek_usd_balance()
     base = os.getenv("SHORTS_BASE_URL", "http://shorts:8080").rstrip("/")

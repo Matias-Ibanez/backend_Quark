@@ -56,6 +56,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), status TEXT NOT NULL, error TEXT, created_at TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS project_briefs(project_id TEXT PRIMARY KEY REFERENCES projects(id), id TEXT NOT NULL, status TEXT NOT NULL, version INTEGER NOT NULL, request TEXT NOT NULL, function TEXT NOT NULL, asset_ids TEXT NOT NULL, answers TEXT NOT NULL, updated_at TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS brief_questions(brief_id TEXT PRIMARY KEY, fields TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS brief_responses(brief_id TEXT NOT NULL, field TEXT NOT NULL, PRIMARY KEY(brief_id,field));
         CREATE UNIQUE INDEX IF NOT EXISTS active_run ON runs(project_id) WHERE status='running';
         CREATE TABLE IF NOT EXISTS calendar(id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), job_id TEXT REFERENCES jobs(id), title TEXT NOT NULL, scheduled_at TEXT NOT NULL, status TEXT NOT NULL, error TEXT, created_at TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS agent_usage(id TEXT PRIMARY KEY, run_id TEXT, project_id TEXT NOT NULL REFERENCES projects(id), provider TEXT NOT NULL, model TEXT NOT NULL, status TEXT NOT NULL, input_tokens INTEGER, output_tokens INTEGER, cache_read_tokens INTEGER, cost_usd REAL, rate_source TEXT, media_kind TEXT, media_count INTEGER NOT NULL DEFAULT 0, duration_seconds REAL NOT NULL, created_at TEXT NOT NULL);

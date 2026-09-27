@@ -64,7 +64,8 @@ def test_confirmed_brief_reaches_generation_once(monkeypatch):
                    aspect="square", style="editorial", palette="custom", colors="#112233, #FFAA00")
     submitted = []
 
-    async def fake_render(pid, message, function, assets, metrics):
+    async def fake_render(pid, message, function, assets, metrics, *, record_user=True):
+        assert record_user is False
         context = brief.production_context(pid)
         assert context["slides"] == 3 and context["dimensions"] == (1080, 1080)
         assert context["colors"] == "#112233, #FFAA00"
@@ -148,6 +149,7 @@ def test_production_prompt_includes_confirmed_format_and_assets_policy(monkeypat
     monkeypatch.setattr(agent.httpx, "AsyncClient", FakeClient)
     result = asyncio.run(agent.chat(project_id, "Creame una imagen", brief_id=saved["id"]))
     assert len(result["media"]) == 1 and brief.get(project_id)["status"] == "done"
+    assert len([turn for turn in store.messages(project_id) if turn['role'] == 'user' and turn['content'] == 'Creame una imagen']) == 1
 
 
 def test_complete_request_goes_straight_to_generation(monkeypatch):
