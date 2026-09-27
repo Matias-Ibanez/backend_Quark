@@ -14,13 +14,13 @@ def test_shared_guide_fits_moneyprinter_prompt_limit(seconds):
     assert (f"{seconds * 2} palabras" if seconds else "50 a 80 palabras") in prompt
 
 
-@pytest.mark.parametrize("medium,voice", [("image", "none"), ("video", "none"), ("video", "voice")])
-def test_hermes_receives_narration_skill_only_for_spoken_video(monkeypatch, medium, voice):
+@pytest.mark.parametrize("medium,voice,video_mode", [("image", "none", "auto"), ("video", "none", "animation"), ("video", "voice", "animation"), ("video", "none", "assets"), ("video", "voice", "assets")])
+def test_hermes_receives_narration_skill_only_for_spoken_video(monkeypatch, medium, voice, video_mode):
     store.init_db()
     project = store.create_project("Guion de café")
     pid = project["id"]
     brief.maybe_start(pid, "Un video de café" if medium == "video" else "Una imagen de café", "content", [], quiet=True)
-    answers = brief.Answers(subject="Café molido al pedir", medium=medium, narration=voice, video_mode="animation",
+    answers = brief.Answers(subject="Café molido al pedir", medium=medium, narration=voice, video_mode=video_mode,
                             seconds=20, facts="Molemos al pedir", copy_mode="exact", copy_text="Tu pausa, tu café.")
     with store.connection() as db:
         db.execute("UPDATE project_briefs SET answers=?,status='generating' WHERE project_id=?", (answers.model_dump_json(), pid))
@@ -48,4 +48,10 @@ def test_hermes_receives_narration_skill_only_for_spoken_video(monkeypatch, medi
     monkeypatch.setattr(agent, "assemble_rendered_scenes", lambda *args: False)
     asyncio.run(agent._hermes_chat(pid, "Creá mi pieza", "content", [], {}))
     assert (narration.SKILL in submitted[0]) == (medium == "video" and voice == "voice")
+    assert ("# Producción de animaciones en este proyecto" in submitted[0]) == (medium == "video")
+    if medium == "video":
+        assert "cargá manimce-best-practices con tu herramienta de skills" in submitted[0]
+        assert "Cairo por CPU, sin -p ni OpenGL" in submitted[0]
+        if video_mode == "assets":
+            assert "usá los originales aportados como protagonistas" in submitted[0]
     assert '"copy_text": "Tu pausa, tu café."' in submitted[0] and '"facts": "Molemos al pedir"' in submitted[0]
