@@ -75,3 +75,9 @@ docker compose stop                  # Apagar sin borrar datos
 No uses `docker compose down -v` si querés conservar conversaciones y medios. `GET /api/costs` muestra costos **estimados** por ejecución y `GET /api/deepseek/balance` consulta el saldo informado por DeepSeek. Instagram queda como módulo separado para configurar más adelante.
 
 Para instalar **ambos repositorios** en un servidor con TLS, seguí [DESPLIEGUE.md](DESPLIEGUE.md). [ARQUITECTURA.md](ARQUITECTURA.md) describe el flujo interno y [VERIFICATION.md](VERIFICATION.md) registra las comprobaciones. Las claves reales, la base de datos y los medios generados están excluidos de Git; rotá las claves que hayas compartido antes de desplegar.
+
+## Render de publicaciones en CPU
+
+El renderizador estático mantiene SVG descargable y PNG de 1080 px, sin GPU. Para un carrusel puede procesar hasta diez láminas con un solo Chromium, de forma secuencial para no saturar el i3. El agente usa `node /opt/quark-renderer/render.mjs --batch /workspace/hermes/PROYECTO/render-jobs.json`; el archivo es una lista de objetos con `source`, `output`, `width` y `height`. El comando individual anterior sigue funcionando.
+
+Cada lámina mantiene una página aislada, bloqueo de recursos remotos y controles de dimensiones/recortes. Una salida se reemplaza solo después de un render válido. El backend publica un carrusel únicamente si todas sus láminas están completas. La salida del comando incluye segundos por lámina y tiempo total; no se aumentan RAM ni CPU de Compose para esta mejora.
