@@ -1,5 +1,12 @@
 # Verificación del prototipo
 
+## 2026-09-28 — Longitud de contraseña admin
+
+- La configuración acepta 12–128 caracteres; el comando y AUTENTICACION.md mantienen el mismo rango. Se conservan Argon2id, CSRF, límites de intentos y revocación de sesiones.
+- `.tmp/auth-venv/Scripts/python.exe -m pytest -q --tb=short tests/test_auth.py`: **31 aprobadas, 13,36 s**, una advertencia de Starlette/AnyIO. El caso nuevo verifica cambio a una contraseña de 12 caracteres, revocación de la sesión anterior e ingreso con la nueva; también se rechazan 11 y 129 caracteres.
+- La credencial elegida por el responsable se configuró y verificó con Argon2 en `.auth/auth.sqlite`, excluido de Git y del build, sin contraseña en código ni `.env`. No se inició un backend fuera de Docker. Docker Desktop no respondió: la credencial local aún no está instalada en `studio-auth:/auth` y los contenedores habituales no se actualizaron. Para Docker sigue correspondiendo ejecutar `python -m backend.auth configure` según AUTENTICACION.md cuando el motor esté disponible.
+- Reversión: restaurar el mínimo de 16 en backend/auth.py, su prueba y documentación; no afecta otros controles. Una credencial ya configurada conserva su hash y sigue válida hasta cambiarla o revocarla.
+
 Estado comprobado el 25/09/2026 en la PC local con los repositorios separados. Este archivo registra pruebas reproducibles; los proyectos y medios usados en las pruebas viven en volúmenes Docker y no se suben a GitHub.
 
 ## Comprobaciones para repetir después de clonar

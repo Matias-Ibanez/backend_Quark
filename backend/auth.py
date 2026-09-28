@@ -64,8 +64,8 @@ def init_db():
 
 
 def configure_password(password):
-    if not 16 <= len(password) <= 128:
-        raise ValueError('Usá una contraseña de entre 16 y 128 caracteres.')
+    if not 12 <= len(password) <= 128:
+        raise ValueError('Usá una contraseña de entre 12 y 128 caracteres.')
     encoded = HASHER.hash(password)
     with database() as db:
         db.execute('BEGIN IMMEDIATE')
@@ -275,7 +275,7 @@ def main():
     args = parser.parse_args()
     init_db()
     if args.action == 'configure':
-        password = getpass.getpass('Nueva contraseña de admin (16–128 caracteres): ')
+        password = getpass.getpass('Nueva contraseña de admin (12–128 caracteres): ')
         if password != getpass.getpass('Repetí la contraseña: '):
             raise SystemExit('Las contraseñas no coinciden.')
         configure_password(password)

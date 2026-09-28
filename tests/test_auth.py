@@ -182,5 +182,15 @@ def test_nonce_from_another_browser_does_not_authorize_login(client):
 
 
 def test_weak_password_is_not_configured(client):
-    with pytest.raises(ValueError): auth.configure_password('admin')
+    for password in ('admin', 'a'*11, 'a'*129):
+        with pytest.raises(ValueError): auth.configure_password(password)
     assert sign_in(client).status_code == 200
+
+
+def test_minimum_length_password_supports_login_and_revokes_old_session(client):
+    sign_in(client)
+    password = 'Test-pass12!'
+    assert len(password) == 12
+    auth.configure_password(password)
+    assert client.get('/api/projects').status_code == 401
+    assert sign_in(client, password).status_code == 200

@@ -11,7 +11,7 @@ docker compose build studio
 docker compose run --rm --no-deps -it studio python -m backend.auth configure
 ```
 
-El comando pide la contraseña dos veces sin mostrarla ni guardarla en `.env`. Usá una frase larga y única de 16–128 caracteres, o una contraseña aleatoria de tu gestor. Ejecutarlo otra vez cambia la contraseña y revoca todas las sesiones. Actualizá también el frontend: ambos repositorios necesitan la versión que incluye el login.
+El comando pide la contraseña dos veces sin mostrarla ni guardarla en `.env`. Se aceptan 12–128 caracteres; preferí una frase larga y única o una contraseña aleatoria de tu gestor. Ejecutarlo otra vez cambia la contraseña y revoca todas las sesiones. Actualizá también el frontend: ambos repositorios necesitan la versión que incluye el login.
 
 Para probar localmente, iniciá el backend y el frontend como de costumbre, abrí `http://localhost:8010/chat` e ingresá como `admin`. Para salir, usá **Salir** en la cabecera. En desarrollo Next.js también admite `http://localhost:3000`.
 
