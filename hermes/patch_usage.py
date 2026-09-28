@@ -33,12 +33,15 @@ after_route = before_route + '\n            ("POST", "/quark/video/render", self
 before_handler = '    async def _handle_health(self, request: "web.Request") -> "web.Response":'
 after_handler = '''    @_require_auth
     async def _handle_quark_video_render(self, request: "web.Request") -> "web.Response":
-        from quark_video import render_request
+        from quark_video import render_request, RenderFailure
         try:
             result = await render_request(await request.json())
             return web.json_response(result)
         except (ValueError, OSError):
             return _invalid_request("Invalid QUARK render request")
+        except RenderFailure as exc:
+            logger.warning("QUARK local render failed: code=%s", exc.code)
+            return web.json_response({"error": {"message": "Local render failed", "type": "render_error", "code": exc.code}}, status=422)
         except (RuntimeError, asyncio.TimeoutError):
             logger.exception("QUARK local render failed")
             return _error_response("Local render failed", 422)

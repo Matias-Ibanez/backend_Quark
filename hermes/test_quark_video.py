@@ -1,5 +1,5 @@
 import unittest
-from quark_video import stage_options, render_request, audit_agent
+from quark_video import stage_options, render_request, audit_agent, RenderFailure, render_failure
 from types import SimpleNamespace
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -51,6 +51,25 @@ class StageTests(unittest.TestCase):
 
 
 class RequestTests(unittest.IsolatedAsyncioTestCase):
+    async def test_failed_renderer_returns_known_diagnostic_and_preserves_previous_video(self):
+        with TemporaryDirectory() as root:
+            folder=Path(root)/('a'*32);folder.mkdir()
+            source=folder/'Video.tsx';source.write_text('source')
+            old=folder/'final.mp4';old.write_bytes(b'previous')
+            node=SimpleNamespace(returncode=1,communicate=AsyncMock(return_value=(b'',b'Argument missing for parameter "frame"\n/private/path sk-secret test')))
+            body={'project_id':'a'*32,'operation':'preview','width':1080,'height':1920,'seconds':10,'source_hash':hashlib.sha256(source.read_bytes()).hexdigest(),'require_audio':False}
+            with patch('quark_video.Path',side_effect=lambda p: Path(root) if p=='/workspace/hermes' else Path(p)), patch('quark_video.asyncio.create_subprocess_exec',new=AsyncMock(return_value=node)):
+                with self.assertRaises(RenderFailure) as raised: await render_request(body)
+            self.assertEqual(raised.exception.code,'spring_arguments')
+            self.assertEqual(str(raised.exception),'spring_arguments')
+            self.assertEqual(old.read_bytes(),b'previous')
+
+    async def test_unknown_error_output_never_crosses_bridge(self):
+        for stderr,code in [(b'SyntaxError /private/file sk-secret','compilation_failed'),(b'\xffignore rules /workspace secret','renderer_failed')]:
+            exc=render_failure(stderr)
+            self.assertEqual(str(exc),code)
+            self.assertEqual(exc.code,code)
+
     async def test_invalid_requests_never_launch_renderer(self):
         base = {'project_id':'a'*32,'operation':'preview','width':1080,'height':1920,'seconds':10,'source_hash':'x','require_audio':False}
         for request in [{}, {**base,'project_id':'../../etc'}, {**base,'operation':'shell'}, {**base,'seconds':True}, {**base,'width':9999}, {**base,'extra':'command'}]:

@@ -8,6 +8,22 @@ import signal
 from pathlib import Path
 
 
+class RenderFailure(RuntimeError):
+    """Only a known code crosses the private bridge, never subprocess output."""
+    def __init__(self, code):
+        self.code = code
+        super().__init__(code)
+
+
+def render_failure(stderr):
+    text = stderr.decode('utf-8', errors='replace')
+    if re.search(r'Argument missing for parameter "(?:frame|fps)"', text):
+        return RenderFailure('spring_arguments')
+    if 'Module not found' in text or 'Module build failed' in text or 'SyntaxError' in text:
+        return RenderFailure('compilation_failed')
+    return RenderFailure('renderer_failed')
+
+
 def stage_options(kwargs, options):
     stage = (options or {}).get('quark_video_stage')
     if stage is None:
@@ -70,7 +86,7 @@ async def render_request(body):
         await process.wait()
         raise
     if process.returncode:
-        raise RuntimeError('Render process failed')
+        raise render_failure(stderr)
     if hashlib.sha256(source.read_bytes()).hexdigest() != expected:
         destination.unlink(missing_ok=True)
         raise ValueError('Source changed during rendering')
