@@ -1,5 +1,12 @@
 # Verificación del prototipo
 
+## 2026-09-28 — Duración orientativa y cierre narrado
+
+- Diagnóstico del servidor: Manim generó un MP4 de 24,333 s, 1080x1920, con voz para un pedido de 20 s; el máximo anterior de 24 s lo rechazó. El archivo final y la locución se conservaron. El usuario autoriza unos segundos adicionales para completar el contenido.
+- agent.py comparte la validación de duración entre importación y ensamblado: mínimo 85%, máximo 125% del tiempo pedido. Un pedido de 20 s admite hasta 25 s. Prompt y guías de marketing, Manim y narración explican el margen; conservan el cierre y prohíben recortar/acelerar voz o rellenar con pausas. No se cambian audio, dimensiones, frescura ni controles SVG/PNG.
+- Pruebas Linux en contenedor descartable con la imagen real de studio, sin red, credenciales ni volúmenes de producción: `python -m pytest -q --tb=short tests/test_video_delivery.py tests/test_studio.py -k 'twenty_second or complete_narrated or complete_fresh_manim or partial_manim'`: **9 aprobadas, 21 deseleccionadas, 1,86 s**. FFmpeg real verifica entrega byte por byte de un video de 24,333 s con voz, rechazo de audio ausente, dimensiones incorrectas y archivo anterior; recuperación de escenas ordenadas y rechazo de borradores permanecen activos. Windows: 6 aprobadas y 1 omitida por ausencia de FFmpeg. git diff --check aprobado. Publicación del archivo original pendiente del despliegue.
+- Reversión: restaurar los límites de duración y mensaje en backend/agent.py y las tres guías de skills, retirando tests/test_video_delivery.py; no afecta datos, sesiones ni los demás motores.
+
 ## 2026-09-28 — Caddy en otra LXC
 
 - Caddy confirmado en 10.10.10.10, API en 10.10.10.102. Compose permite STUDIO_BIND_IP opt-in con loopback predeterminado; el workflow admite Variable o Secret. El serializador acepta solo IPv4 RFC1918 o loopback y rechaza 0.0.0.0, IP pública, hostname y dirección con puerto. No cambia límites CPU/RAM, autenticación ni puertos privados de los motores.

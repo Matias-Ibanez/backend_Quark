@@ -26,7 +26,7 @@ Create a complete `final.mp4` as soon as all planned video scenes render success
 
 ## Video delivery gate
 
-- A Manim scene clip is a draft component, never a deliverable. Stitch every planned scene in narrative order into one `final.mp4` and verify its duration with `ffprobe`. For a roughly 30-second request, aim for 26–36 seconds; a 5- or 10-second scene is incomplete.
+- A Manim scene clip is a draft component, never a deliverable. Stitch every planned scene in narrative order into one `final.mp4` and verify its duration with `ffprobe`. Duration is approximate: aim for the requested time and allow up to 25% extra for a natural ending (20 seconds may finish at 25). Never cut or rush narration, pad with empty holds, or substitute a 5- or 10-second scene for a complete 30-second video.
 - Check that each scene follows logically from the previous one and that the opening question is answered before the closing card. Do not stitch unrelated renders merely to reach the target duration.
 - Review still frames from the beginning, middle, and end of the stitched video. On a vertical canvas, use the space deliberately: make the main diagram and one short headline large enough for a phone. Avoid a tiny central cluster surrounded by empty space or multiple overlapping lines of math.
 - Prefer one visual idea per beat. In a 30-second educational reel, teach one concept with a clear visual progression; keep formulas mathematically correct and readable, and leave the creator's requested name visible in the closing shot.
