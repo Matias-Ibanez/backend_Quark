@@ -15,6 +15,7 @@ services:
       HERMES_BASE_URL: http://hermes:8642/v1
       HERMES_API_KEY: ${HERMES_API_KEY:-lienzo-local-development-key}
       PUBLIC_APP_ORIGIN: ${PUBLIC_APP_ORIGIN:-}
+      PUBLIC_API_ORIGIN: ${PUBLIC_API_ORIGIN:-}
       SHORTS_BASE_URL: http://shorts:8080
       SHORTS_API_KEY: ${SHORTS_API_KEY:-}
       PEXELS_API_KEY: ${PEXELS_API_KEY:-}

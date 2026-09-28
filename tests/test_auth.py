@@ -1,4 +1,7 @@
 import json
+import os
+import subprocess
+import sys
 import time
 
 import pytest
@@ -194,3 +197,54 @@ def test_minimum_length_password_supports_login_and_revokes_old_session(client):
     auth.configure_password(password)
     assert client.get('/api/projects').status_code == 401
     assert sign_in(client, password).status_code == 200
+
+
+def test_separate_api_hostname_keeps_browser_origin_and_csrf_guards(client, monkeypatch):
+    monkeypatch.setenv('PUBLIC_APP_ORIGIN', 'https://quark.test')
+    monkeypatch.setenv('PUBLIC_API_ORIGIN', 'https://api.quark.test')
+    auth.init_db()
+    with TestClient(app, base_url='https://api.quark.test') as remote:
+        remote.headers['Origin'] = 'https://quark.test'
+        response = sign_in(remote)
+        assert response.status_code == 200
+        assert remote.get('/api/auth/check').status_code == 200
+        assert remote.post('/api/projects', json={'name':'Missing CSRF'}).status_code == 403
+        headers = {'X-Quark-CSRF':response.json()['csrfToken']}
+        assert remote.post('/api/projects', json={'name':'Allowed'}, headers=headers).status_code == 201
+        for origin in ('https://api.quark.test', 'https://evil.test', 'http://localhost:8010'):
+            assert remote.get('/api/auth/check', headers={'Origin':origin}).status_code == 403
+        assert remote.get('/api/auth/check', headers={'Host':'unknown.test'}).status_code == 403
+
+
+@pytest.mark.parametrize('value', ['http://api.quark.test', 'https://api.quark.test/path', 'https://user:pass@api.quark.test', 'https://api.quark.test:invalid'])
+def test_invalid_public_api_origin_is_rejected(client, monkeypatch, value):
+    monkeypatch.setenv('PUBLIC_API_ORIGIN', value)
+    with pytest.raises(RuntimeError):
+        auth.init_db()
+
+def test_ci_initialize_does_not_rotate_existing_admin_or_sessions(tmp_path):
+    import sqlite3
+    from argon2 import PasswordHasher
+    root = tmp_path/'auth'
+    environment = {**os.environ, 'QUARK_AUTH_DIR':str(root)}
+    command = [sys.executable,'-m','backend.auth','initialize']
+    first = subprocess.run(command,input='Isolated-test-password!',env=environment,capture_output=True,text=True,check=True,timeout=15)
+    assert 'inicializada' in first.stdout
+    with sqlite3.connect(root/'auth.sqlite') as db:
+        original = db.execute('SELECT password_hash FROM admin').fetchone()[0]
+        db.execute("INSERT INTO sessions VALUES ('test','csrf','session',1,2,1)")
+    second = subprocess.run(command,input='A-different-test-password!',env=environment,capture_output=True,text=True,check=True,timeout=15)
+    with sqlite3.connect(root/'auth.sqlite') as db:
+        assert db.execute('SELECT password_hash FROM admin').fetchone()[0] == original
+        assert db.execute('SELECT count(*) FROM sessions').fetchone()[0] == 1
+    assert PasswordHasher().verify(original,'Isolated-test-password!')
+    assert 'conservada' in second.stdout
+
+
+def test_ci_initialize_rejects_short_password_without_configuring(tmp_path):
+    import sqlite3
+    root = tmp_path/'auth'
+    result = subprocess.run([sys.executable,'-m','backend.auth','initialize'],input='short',env={**os.environ,'QUARK_AUTH_DIR':str(root)},capture_output=True,text=True,timeout=15)
+    assert result.returncode != 0 and 'short' not in result.stderr
+    with sqlite3.connect(root/'auth.sqlite') as db:
+        assert db.execute('SELECT count(*) FROM admin').fetchone()[0] == 0

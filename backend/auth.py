@@ -41,15 +41,16 @@ def database():
 
 
 def init_db():
-    public = os.getenv('PUBLIC_APP_ORIGIN', '').rstrip('/')
-    try:
-        parsed = urlparse(public)
-        _ = parsed.port  # Validate malformed port strings too.
-        invalid = public and (parsed.scheme != 'https' or not parsed.hostname or parsed.path or parsed.query or parsed.fragment or parsed.username)
-    except ValueError:
-        invalid = True
-    if invalid:
-        raise RuntimeError('PUBLIC_APP_ORIGIN debe ser un origen HTTPS, sin ruta ni credenciales.')
+    for setting in ('PUBLIC_APP_ORIGIN', 'PUBLIC_API_ORIGIN'):
+        public = os.getenv(setting, '').rstrip('/')
+        try:
+            parsed = urlparse(public)
+            _ = parsed.port  # Validate malformed port strings too.
+            invalid = public and (parsed.scheme != 'https' or not parsed.hostname or parsed.path or parsed.query or parsed.fragment or parsed.username)
+        except ValueError:
+            invalid = True
+        if invalid:
+            raise RuntimeError(f'{setting} debe ser un origen HTTPS, sin ruta ni credenciales.')
     ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
     ROOT.chmod(0o700)
     with database() as db:
@@ -127,6 +128,9 @@ def allowed_request(request):
     hosts = {'localhost', '127.0.0.1', 'testserver', 'studio'}
     if public:
         hosts.add(urlparse(public).hostname)
+    api_origin = os.getenv('PUBLIC_API_ORIGIN', '')
+    if api_origin:
+        hosts.add(urlparse(api_origin).hostname)
     if host not in hosts or request.headers.get('sec-fetch-site') == 'cross-site':
         return False
     origins = {public} if public else {f'http://{host}:{port}' for host in ('localhost','127.0.0.1') for port in (os.getenv('WEB_PORT','8010'),'3000')}
@@ -271,10 +275,23 @@ def logout(request: Request):
 def main():
     import argparse
     parser = argparse.ArgumentParser(description='Gestionar la única cuenta admin de QUARK.')
-    parser.add_argument('action', choices=['configure','revoke'])
+    parser.add_argument('action', choices=['configure','initialize','revoke'])
     args = parser.parse_args()
     init_db()
-    if args.action == 'configure':
+    if args.action == 'initialize':
+        # CI receives the bootstrap password over stdin, never argv or .env.
+        import sys
+        password = sys.stdin.read()
+        with database() as db:
+            db.execute('BEGIN IMMEDIATE')
+            if db.execute('SELECT 1 FROM admin WHERE id=1').fetchone():
+                print('Cuenta admin existente conservada.')
+            else:
+                if not 12 <= len(password) <= 128:
+                    raise SystemExit('La contraseña inicial requiere 12–128 caracteres.')
+                db.execute('INSERT INTO admin VALUES (1,?)', (HASHER.hash(password),))
+                print('Cuenta admin inicializada.')
+    elif args.action == 'configure':
         password = getpass.getpass('Nueva contraseña de admin (12–128 caracteres): ')
         if password != getpass.getpass('Repetí la contraseña: '):
             raise SystemExit('Las contraseñas no coinciden.')

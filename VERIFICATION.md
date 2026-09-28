@@ -1,5 +1,12 @@
 # Verificación del prototipo
 
+## 2026-09-28 — Autenticación para API con hostname propio y bootstrap CI
+
+- `PUBLIC_API_ORIGIN` valida un origen HTTPS y admite su hostname junto con el del frontend. `PUBLIC_APP_ORIGIN` sigue siendo el único origen permitido del navegador. Se eliminó el guard local duplicado de app.py; AccessControl conserva sesión, Host, Origin y CSRF para todas las rutas.
+- `python -m backend.auth initialize` recibe la contraseña por stdin e inicializa admin bajo transacción únicamente si no existe. Repetirlo conserva contraseña y sesiones; rechaza una contraseña inicial corta sin configurar la cuenta. No se guarda la contraseña en argumentos ni en `.env`.
+- Suite enfocada con la integración de despliegue: `.tmp/auth-venv/Scripts/python.exe -m pytest -q --tb=short tests/test_auth.py tests/test_deploy.py tests/test_chat_attachments.py tests/test_inline_questions.py tests/test_video_marketing_context.py tests/test_video_voice_choice.py tests/test_intake_colors.py tests/test_motion_pipeline.py tests/test_workspace.py`: **110 aprobadas, 30,79 s**, una advertencia de Starlette/AnyIO. Se verificó login real mediante TestClient usando Host de API y Origin de frontend, rechazo de orígenes ajenos y ausencia de CSRF. El bootstrap CLI se ejercitó como subprocess con almacenamiento temporal, nunca con credenciales reales ni proveedor pago.
+- Reversión de esta unidad: retirar PUBLIC_API_ORIGIN de auth/Compose/env, restaurar el guard previo y quitar initialize/pruebas asociadas. Coordinar con la retirada del bootstrap del workflow; no elimina volúmenes ni cambia contraseñas ya configuradas.
+
 ## 2026-09-28 — Longitud de contraseña admin
 
 - La configuración acepta 12–128 caracteres; el comando y AUTENTICACION.md mantienen el mismo rango. Se conservan Argon2id, CSRF, límites de intentos y revocación de sesiones.

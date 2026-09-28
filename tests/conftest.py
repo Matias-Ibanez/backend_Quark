@@ -5,6 +5,7 @@ import tempfile
 os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="quark-test-")
 os.environ["QUARK_AUTH_DIR"] = tempfile.mkdtemp(prefix="quark-auth-test-")
 os.environ.pop("PUBLIC_APP_ORIGIN", None)
+os.environ.pop("PUBLIC_API_ORIGIN", None)
 os.environ.pop("DEEPSEEK_API_KEY", None)
 
 

@@ -34,20 +34,8 @@ app = FastAPI(title="QUARK · Asistente de marketing", lifespan=lifespan)
 
 
 @app.middleware("http")
-async def local_origin(request: Request, call_next):
-    # The public TLS origin is opt-in; the API port stays bound to loopback.
-    if request.url.path.startswith("/api/"):
-        host = request.headers.get("host", "").split(":")[0]
-        public_origin = os.getenv("PUBLIC_APP_ORIGIN", "").rstrip("/")
-        public_host = urlparse(public_origin).hostname if public_origin else None
-        if host not in ("localhost", "127.0.0.1", "testserver", "studio", public_host):
-            return JSONResponse({"detail": "El estudio solo admite acceso local"}, status_code=403)
-        origin = request.headers.get("origin")
-        allowed = {f"http://localhost:{os.getenv('WEB_PORT', '8010')}", f"http://127.0.0.1:{os.getenv('WEB_PORT', '8010')}", "http://localhost:3000", "http://127.0.0.1:3000"}
-        if public_origin:
-            allowed.add(public_origin)
-        if origin and urlparse(origin).netloc != request.headers.get("host") and origin not in allowed:
-            return JSONResponse({"detail": "Origen no permitido"}, status_code=403)
+async def media_security(request: Request, call_next):
+    # AccessControl validates Host, Origin, session and CSRF for all routes.
     response = await call_next(request)
     if request.url.path.startswith("/media/"):
         if request.url.path.startswith("/media/exports/") and request.url.path.endswith(".svg"):
