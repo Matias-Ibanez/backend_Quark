@@ -142,6 +142,7 @@ def assemble_rendered_scenes(folder, after_ns, target_seconds=None, require_audi
 def import_hermes_media(project_id, folder, before, target_seconds=None, require_audio=False, preferred_kind=None, require_vector=False, slides=None, dimensions=None, apply_music=True):
     project = store.get_project(project_id)
     created = []
+    carousel_id = store.uid() if slides else None
     outputs = [("svg", f"final-{index:02}.svg") for index in range(1, slides + 1)] if slides else [("mp4", "final.mp4"), ("svg", "final.svg"), ("png", "final.png")]
     if slides:
         # Validate the entire carousel before publishing any slide.
@@ -161,7 +162,7 @@ def import_hermes_media(project_id, folder, before, target_seconds=None, require
                     image.verify()
             except (InvalidSVG, OSError, ValueError):
                 return []
-    for kind, filename in outputs:
+    for slide_index, (kind, filename) in enumerate(outputs, start=1):
         if preferred_kind and ("png" if kind == "svg" else kind) != preferred_kind:
             continue
         if kind == "png" and (require_vector or any(url.endswith(".svg") for url in created)):
@@ -211,6 +212,8 @@ def import_hermes_media(project_id, folder, before, target_seconds=None, require
             if caption.is_file():
                 document["caption"] = caption.read_text(encoding="utf-8")[:2200]
             payload = {"document": document, "revision": project["revision"], "kind": "png", "quality": "final", "scene": 0, "hermes": True}
+            if carousel_id:
+                payload.update(carouselId=carousel_id, slideIndex=slide_index, slideCount=slides)
             result = {"url": f"/media/exports/{preview_name}", "filename": preview_name,
                       "vectorUrl": f"/media/exports/{vector_name}"}
             with store.connection() as db:

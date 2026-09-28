@@ -1,5 +1,10 @@
 # Verificación del prototipo
 
+## 2026-09-28 — Agrupación de carruseles
+
+- Cada entrega completa conserva SVG+PNG y un carouselId propio, slideIndex consecutivo y slideCount en sus jobs. Las revisiones tienen identificadores diferentes para que el visor no mezcle láminas de versiones distintas; la validación de todas las imágenes previa a la publicación permanece activa.
+- python -m pytest -q --tb=short tests/test_carousel_delivery.py: 1 aprobada, 0,88 s. Comprueba orden de tres láminas, grupo compartido y preservación de las vistas PNG. Reversión: retirar los metadatos de import_hermes_media y esta prueba; datos y recursos anteriores siguen siendo compatibles.
+
 ## 2026-09-28 — Duración orientativa y cierre narrado
 
 - Diagnóstico del servidor: Manim generó un MP4 de 24,333 s, 1080x1920, con voz para un pedido de 20 s; el máximo anterior de 24 s lo rechazó. El archivo final y la locución se conservaron. El usuario autoriza unos segundos adicionales para completar el contenido.
