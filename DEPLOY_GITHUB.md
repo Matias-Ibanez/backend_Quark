@@ -16,6 +16,8 @@ Generá cada secreto de servicio por separado con `openssl rand -hex 32`. No reu
 
 Agregá estas **Variables**:
 
+Las URLs `PUBLIC_APP_ORIGIN` y `PUBLIC_API_ORIGIN` también pueden estar en **Secrets**, si ya las guardaste allí. El workflow admite ambas ubicaciones; si existe una Variable no vacía con el mismo nombre, tiene prioridad. Los demás ajustes de esta lista se leen como Variables.
+
 - `PUBLIC_APP_ORIGIN`: origen HTTPS final del frontend, por ejemplo `https://quark.tudominio.com`, sin barra final ni ruta.
 - `PUBLIC_API_ORIGIN`: origen HTTPS del túnel del backend, por ejemplo `https://api.quark.tudominio.com`, sin barra final ni ruta. Autoriza ese hostname; el origen permitido del navegador sigue siendo exclusivamente el del frontend.
 - `QUARK_DOCKER_HOST`: opcional; por defecto `tcp://10.10.10.102:2375`. Cambialo si la LXC destino es otra.

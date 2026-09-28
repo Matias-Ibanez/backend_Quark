@@ -1,5 +1,11 @@
 # Verificación del prototipo
 
+## 2026-09-28 — Orígenes públicos en Secrets o Variables
+
+- El error de configuración informado correspondía a URLs guardadas como Secrets mientras el workflow consultaba solo vars. Los dos orígenes ahora usan Variable no vacía como primera opción y Secret como alternativa. No se modifican la validación HTTPS, la generación privada de .env ni los controles de autenticación.
+- `actionlint` 1.7.12 sobre deploy.yml aprobado; `git diff --check` aprobado. No se añadieron tests que reproduzcan el operador del workflow. La resolución con secretos reales debe verificarse en el nuevo run de GitHub; sus valores no se leen ni se imprimen localmente.
+- Reversión: restaurar las dos expresiones vars-only y la documentación de esta corrección. No afecta contenedores, credenciales ni volúmenes.
+
 ## 2026-09-28 — GitHub Actions hacia Docker remoto
 
 - `.github/workflows/deploy.yml`: push/main y dispatch/main en runner Linux self-hosted, checkout v4 fijado al SHA verificado, contents:read, despliegues serializados y timeout de 60 minutos. Genera `.env` privado desde Secrets/Variables, construye secuencialmente antes de detener Hermes, instala skills desde la imagen, inicializa admin una sola vez, recrea servicios sin down y comprueba disponibilidad sin LLM. Limpia `.env` incluso ante fallo; diagnóstico acotado muestra estados de contenedores sin publicar logs de conversaciones/proveedores.
