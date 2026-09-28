@@ -1,6 +1,6 @@
 import asyncio
 import pytest
-from fastapi.testclient import TestClient
+from conftest import authenticated_client as TestClient
 from backend import agent, brief, store, workspace
 from backend.app import app
 

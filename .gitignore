@@ -3,6 +3,7 @@
 *cookies*.txt
 !.env.example
 .venv/
+.auth/
 node_modules/
 dist/
 data/

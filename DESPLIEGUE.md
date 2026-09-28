@@ -1,6 +1,6 @@
 # Levantar QUARK en un servidor con TLS
 
-QUARK usa dos repositorios y dos despliegues Compose en el mismo servidor. [backend_Quark](https://github.com/Matias-Ibanez/backend_Quark) inicia `studio`, Hermes y MoneyPrinterTurbo; [landing-quark](https://github.com/Matias-Ibanez/landing-quark) inicia Next.js. Comparten la red Docker `quark-shared`. El proxy HTTPS apunta al frontend en `127.0.0.1:8010`; la API solo escucha en `127.0.0.1:8011` y en la red compartida. El prototipo es de **un solo usuario** y necesita autenticación en el proxy.
+QUARK usa dos repositorios y dos despliegues Compose en el mismo servidor. [backend_Quark](https://github.com/Matias-Ibanez/backend_Quark) inicia `studio`, Hermes y MoneyPrinterTurbo; [landing-quark](https://github.com/Matias-Ibanez/landing-quark) inicia Next.js. Comparten la red Docker `quark-shared`. El proxy HTTPS apunta al frontend en `127.0.0.1:8010`; la API solo escucha en `127.0.0.1:8011` y en la red compartida. El acceso requiere la cuenta compartida `admin`, configurada según [AUTENTICACION.md](AUTENTICACION.md); las rutas y archivos quedan cerrados antes de configurar su contraseña.
 
 ## Preparación
 
@@ -32,6 +32,7 @@ Obtené `PEXELS_API_KEY` en https://www.pexels.com/api/ para que los shorts encu
 cd quark-backend
 docker compose --parallel 1 up -d --build
 curl -fsS http://127.0.0.1:8011/api/health
+docker compose run --rm --no-deps -it studio python -m backend.auth configure
 
 cd ../quark-frontend
 docker compose up -d --build
@@ -67,11 +68,9 @@ Usá una sesión propia y conservá ese archivo en privado; las cookies pueden v
 
 ## Proxy HTTPS
 
-Agregá estas directivas dentro del `server` HTTPS que ya tiene tu certificado. El ejemplo usa autenticación básica de Nginx; creá `/etc/nginx/quark.htpasswd` según la configuración de tu servidor.
+Agregá estas directivas dentro del `server` HTTPS que ya tiene tu certificado. La aplicación valida la sesión de admin; no hace falta autenticación básica adicional. Antes de abrir el acceso público, verificá `PUBLIC_APP_ORIGIN=https://quark.tu-dominio.com` y las cookies Secure. La configuración concreta del servidor se revisará durante el despliegue.
 
 ```nginx
-auth_basic "QUARK";
-auth_basic_user_file /etc/nginx/quark.htpasswd;
 client_max_body_size 30m;
 
 location / {
@@ -87,7 +86,7 @@ Comprobá la sintaxis y recargá Nginx con `nginx -t` y el método habitual de t
 
 ## Mantener y recuperar datos
 
-Desde cada repositorio, `docker compose up -d --build` actualiza su servicio; `docker compose logs -f` muestra los errores. En el backend, `docker compose stop` detiene `studio`, Hermes y MoneyPrinterTurbo sin borrar los datos. Respaldá `studio-data`, `hermes-data` y `shorts-data` antes de migrar o actualizar. No uses `docker compose down -v`: elimina proyectos, medios y sesiones. Evitá `docker compose down` en el backend mientras el frontend siga conectado a `quark-shared`.
+Desde cada repositorio, `docker compose up -d --build` actualiza su servicio; `docker compose logs -f` muestra los errores. En el backend, `docker compose stop` detiene `studio`, Hermes y MoneyPrinterTurbo sin borrar los datos. Respaldá `studio-data`, `studio-auth`, `hermes-data` y `shorts-data` antes de migrar o actualizar. El volumen `studio-auth` contiene credenciales y sesiones privadas; después de restaurarlo, revocá las sesiones como indica AUTENTICACION.md. No uses `docker compose down -v`: elimina proyectos, medios y sesiones. Evitá `docker compose down` en el backend mientras el frontend siga conectado a `quark-shared`.
 
 `/api/costs` registra estimaciones por tokens y, para shorts, un delta aproximado del saldo DeepSeek cuando está disponible. `/api/deepseek/balance` devuelve el saldo actual; pueden diferir por demora de facturación, llamadas simultáneas y redondeos. Instagram sigue opcional y requiere credenciales propias.
 

@@ -2,7 +2,7 @@ import asyncio
 import json
 
 import pytest
-from fastapi.testclient import TestClient
+from conftest import authenticated_client as TestClient
 from PIL import Image
 from backend.app import app
 from backend import agent, brief, store, workspace

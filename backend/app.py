@@ -11,11 +11,12 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pydantic import BaseModel, Field
-from . import store, agent, instagram, workspace, costs, music, brief
+from . import store, agent, instagram, workspace, costs, music, brief, auth
 from .models import CreateProject, EditProject, Crop, Brand, Chat
 
 Image.MAX_IMAGE_PIXELS = 25_000_000
 store.init_db()
+auth.init_db()
 chat_locks: dict[str, asyncio.Lock] = {}
 
 
@@ -62,7 +63,7 @@ async def local_origin(request: Request, call_next):
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "name": "QUARK", "storage": "sqlite", "mode": "local-single-user"}
+    return {"status": "ok"}
 
 
 @app.get("/api/settings")
@@ -284,8 +285,10 @@ def download_project(project_id: str):
 
 
 app.include_router(instagram.router)
+app.include_router(auth.router)
 app.include_router(workspace.router)
 app.include_router(music.router)
 app.include_router(brief.router)
 app.mount("/media/assets", StaticFiles(directory=store.DATA / "assets"), name="assets")
 app.mount("/media/exports", StaticFiles(directory=store.DATA / "exports"), name="exports")
+app.add_middleware(auth.AccessControl)

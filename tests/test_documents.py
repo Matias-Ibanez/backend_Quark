@@ -3,7 +3,7 @@ import io
 import subprocess
 
 import pytest
-from fastapi.testclient import TestClient
+from conftest import authenticated_client as TestClient
 from fastapi import HTTPException
 from PIL import Image, ImageDraw, ImageFont
 

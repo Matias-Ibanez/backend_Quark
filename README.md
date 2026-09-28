@@ -1,5 +1,7 @@
 # QUARK · backend
 
+El acceso usa una única cuenta `admin` con sesiones privadas y revocables. Antes de usar el chat, configurá su contraseña siguiendo [AUTENTICACION.md](AUTENTICACION.md). No existe una contraseña predeterminada ni registro público; el frontend y este backend deben actualizarse juntos.
+
 Este repositorio contiene la API, Hermes, las herramientas multimedia y los datos persistentes de QUARK. La interfaz vive en [landing-quark](https://github.com/Matias-Ibanez/landing-quark). DeepSeek aporta el modelo; las publicaciones estáticas se crean como SVG vectorial editable y Playwright/Chromium genera una vista PNG. Remotion, Manim y FFmpeg producen videos, y rembg separa sujetos de fotos subidas. Todo corre sin GPU dedicada y sin generación de fotografías por difusión. Una foto incorporada en un SVG sigue siendo raster; el texto y las formas son vectores.
 
 ## Iniciar el backend

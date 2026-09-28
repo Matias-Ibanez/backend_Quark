@@ -10,6 +10,7 @@ services:
         required: false
     environment:
       QUARK_POST_REASONING: ${QUARK_POST_REASONING:-off}
+      QUARK_AUTH_DIR: /auth
       WEB_PORT: ${FRONTEND_PORT:-8010}
       HERMES_BASE_URL: http://hermes:8642/v1
       HERMES_API_KEY: ${HERMES_API_KEY:-lienzo-local-development-key}
@@ -19,6 +20,7 @@ services:
       PEXELS_API_KEY: ${PEXELS_API_KEY:-}
     volumes:
       - studio-data:/data
+      - studio-auth:/auth
     shm_size: 1gb
     mem_limit: 1536m
     cpus: 2
@@ -82,6 +84,7 @@ services:
     security_opt: ["no-new-privileges:true"]
 volumes:
   studio-data:
+  studio-auth:
   hermes-data:
   shorts-data:
 

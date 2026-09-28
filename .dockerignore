@@ -2,6 +2,7 @@
 .env
 .env.*
 .venv
+.auth
 node_modules
 dist
 data

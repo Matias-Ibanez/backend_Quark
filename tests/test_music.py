@@ -7,7 +7,7 @@ import tempfile
 
 os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="quark-music-test-")
 
-from fastapi.testclient import TestClient
+from conftest import authenticated_client as TestClient
 from backend.app import app
 from backend import agent, store
 from backend import music
