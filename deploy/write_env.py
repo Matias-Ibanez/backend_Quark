@@ -1,5 +1,6 @@
 """Serialize GitHub deployment settings without evaluating or printing secrets."""
 import os
+from ipaddress import IPv4Address, IPv4Network
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -26,10 +27,18 @@ def write_env(path, values):
     settings = {key: values[key] for key in required}
     settings.update({
         'STUDIO_PORT': values.get('STUDIO_PORT') or '8011',
+        'STUDIO_BIND_IP': (values.get('STUDIO_BIND_IP') or '127.0.0.1').strip(),
         'FRONTEND_PORT': values.get('FRONTEND_PORT') or '8010',
         'QUARK_REMOTION_CONCURRENCY': values.get('QUARK_REMOTION_CONCURRENCY') or '2',
         'QUARK_POST_REASONING': values.get('QUARK_POST_REASONING') or 'off',
     })
+    try:
+        bind = IPv4Address(settings['STUDIO_BIND_IP'])
+    except ValueError:
+        raise ValueError('STUDIO_BIND_IP debe ser una dirección IPv4 privada o loopback.') from None
+    networks = ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '127.0.0.0/8')
+    if not any(bind in IPv4Network(network) for network in networks):
+        raise ValueError('STUDIO_BIND_IP solo admite IPv4 privada o loopback, no todas las interfaces.')
     for key in ('STUDIO_PORT', 'FRONTEND_PORT'):
         if not settings[key].isdigit() or not 1 <= int(settings[key]) <= 65535:
             raise ValueError(f'{key} debe ser un puerto válido.')

@@ -41,6 +41,7 @@ jobs:
           PUBLIC_APP_ORIGIN: ${{ vars.PUBLIC_APP_ORIGIN || secrets.PUBLIC_APP_ORIGIN }}
           PUBLIC_API_ORIGIN: ${{ vars.PUBLIC_API_ORIGIN || secrets.PUBLIC_API_ORIGIN }}
           STUDIO_PORT: ${{ vars.STUDIO_PORT }}
+          STUDIO_BIND_IP: ${{ vars.STUDIO_BIND_IP || secrets.STUDIO_BIND_IP }}
           QUARK_REMOTION_CONCURRENCY: ${{ vars.QUARK_REMOTION_CONCURRENCY }}
           QUARK_POST_REASONING: ${{ vars.QUARK_POST_REASONING }}
         run: python3 deploy/write_env.py

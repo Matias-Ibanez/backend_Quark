@@ -19,9 +19,10 @@ Agregá estas **Variables**:
 Las URLs `PUBLIC_APP_ORIGIN` y `PUBLIC_API_ORIGIN` también pueden estar en **Secrets**, si ya las guardaste allí. El workflow admite ambas ubicaciones; si existe una Variable no vacía con el mismo nombre, tiene prioridad. Los demás ajustes de esta lista se leen como Variables.
 
 - `PUBLIC_APP_ORIGIN`: origen HTTPS final del frontend, por ejemplo `https://quark.tudominio.com`, sin barra final ni ruta.
-- `PUBLIC_API_ORIGIN`: origen HTTPS del túnel del backend, por ejemplo `https://api.quark.tudominio.com`, sin barra final ni ruta. Autoriza ese hostname; el origen permitido del navegador sigue siendo exclusivamente el del frontend.
+- `PUBLIC_API_ORIGIN`: origen HTTPS del túnel del backend, por ejemplo `https://api-quark.tudominio.com`, sin barra final ni ruta. Autoriza ese hostname; el origen permitido del navegador sigue siendo exclusivamente el del frontend.
 - `QUARK_DOCKER_HOST`: opcional; por defecto `tcp://10.10.10.102:2375`. Cambialo si la LXC destino es otra.
 - `STUDIO_PORT`: opcional; por defecto `8011`, enlazado solo a `127.0.0.1` de la LXC Docker.
+- `STUDIO_BIND_IP`: opcional, Variable o Secret; por defecto `127.0.0.1`. Si Caddy corre en otra LXC, usá la IPv4 privada de la LXC Docker (`10.10.10.102` en este servidor). Se rechazan IP públicas y `0.0.0.0`. Restringí el puerto en el firewall a la IP del proxy (`10.10.10.10` en este servidor).
 - `QUARK_REMOTION_CONCURRENCY`: opcional, `1`–`4`, por defecto `2` para el i3.
 - `QUARK_POST_REASONING`: opcional, `off` u `on`, por defecto `off`.
 
@@ -35,7 +36,7 @@ El runner de organización debe admitir este repositorio y tener etiquetas `self
 
 El endpoint Docker `2375` permite administrar el host sin autenticación TLS. Restringilo por firewall a la IP del runner en la red privada; no lo publiques en Internet ni mediante Cloudflare Tunnel. Si ya tenés un endpoint con TLS/contexto, adaptá la conexión del workflow antes de usarlo.
 
-La API sigue cerrada sin sesión. El workflow no abre puertos de Hermes ni de MoneyPrinterTurbo, no modifica tus túneles y no administra otras aplicaciones del servidor. Usa el nombre de proyecto **`lienzo`** para conservar los volúmenes existentes; no lo cambies entre despliegues.
+La API sigue cerrada sin sesión. El workflow no abre puertos de Hermes ni de MoneyPrinterTurbo, no modifica tus túneles y no administra otras aplicaciones del servidor. La API queda en loopback salvo que configures explícitamente STUDIO_BIND_IP con una IP privada. Usa el nombre de proyecto **`lienzo`** para conservar los volúmenes existentes; no lo cambies entre despliegues.
 
 ## Qué sucede al hacer push
 
@@ -69,9 +70,22 @@ Después de un workflow, `.env` ya no existe en el runner. Para modificar o recr
 
 ## Conectar Cloudflare y Vercel después
 
-Si `cloudflared` está instalado en la misma LXC Docker, apuntá el hostname de la API a `http://127.0.0.1:8011`. Si corre como contenedor, conectalo a la red `quark-shared` y apuntá a `http://studio:8000`. Si está en otra LXC, loopback no llega al backend: habrá que ajustar su conectividad antes de publicar el túnel. No asumas que `http://10.10.10.102:8011` es accesible, porque Compose publica solo en loopback.
+Si `cloudflared` está instalado en la misma LXC Docker, apuntá el hostname de la API a `http://127.0.0.1:8011`. Si corre como contenedor, conectalo a la red `quark-shared` y apuntá a `http://studio:8000`. Si el túnel llega a Caddy en otra LXC, configurá STUDIO_BIND_IP con la IP privada de Docker y hacé que Caddy alcance ese puerto; loopback no es accesible desde otra máquina.
 
-En Vercel, importá el repo del frontend y definí `QUARK_API_URL=https://api.quark.tudominio.com` antes del build. Su dominio público debe coincidir exactamente con `PUBLIC_APP_ORIGIN`. Las rewrites mantienen `/api`, `/media`, `/fonts` y `/webhooks` bajo el origen del frontend. Conservá las respuestas privadas sin caché; no actives reglas de caché general para esas rutas en Cloudflare.
+Para Caddy en `10.10.10.10` y API en `10.10.10.102`, configurá `STUDIO_BIND_IP=10.10.10.102`, `STUDIO_PORT=8011` y `PUBLIC_API_ORIGIN=https://api-quark.matiasagustinibanez.com` en GitHub, y desplegá la revisión que admite ese bind. Dentro del mismo bloque de sitio de tus otros matchers en Caddy:
+
+```caddyfile
+@quark_api host api-quark.matiasagustinibanez.com
+handle @quark_api {
+    reverse_proxy 10.10.10.102:8011
+}
+```
+
+No quites `/api` del path: el endpoint de salud es `/api/health`. Caddy conserva el Host para que la API valide el hostname público. Primero probá desde la LXC de Caddy `curl -fsS http://10.10.10.102:8011/api/health`; luego validá/recargá tu Caddyfile por el método habitual y asociá el hostname al túnel existente que llega a Caddy. Probá `https://api-quark.matiasagustinibanez.com/api/health`: debe devolver `{"status":"ok"}`.
+
+El HTTPS público lo gestiona Cloudflare. Con Universal SSL sobre una zona completa de `matiasagustinibanez.com`, usá un solo nivel de subdominio (`api-quark...`): `api.quark...` requiere cobertura adicional. El túnel no amplía por sí mismo la cobertura del certificado del borde; véase [la documentación de Universal SSL](https://developers.cloudflare.com/ssl/edge-certificates/universal-ssl/limitations/). No hace falta instalar certificados en la API para el hop HTTP privado de Caddy.
+
+En Vercel, importá el repo del frontend y definí `QUARK_API_URL=https://api-quark.tudominio.com` antes del build. Su dominio público debe coincidir exactamente con `PUBLIC_APP_ORIGIN`. Las rewrites mantienen `/api`, `/media`, `/fonts` y `/webhooks` bajo el origen del frontend. Conservá las respuestas privadas sin caché; no actives reglas de caché general para esas rutas en Cloudflare.
 
 Después verificá el dominio real: login y logout, protección de API/medios sin cookie, subida de una imagen y un PDF, generación, reproducción y descarga. Las comprobaciones del workflow no validan por sí solas DNS, Cloudflare, cookies a través de Vercel ni límites de archivos del proxy. Esa prueba externa sigue pendiente.
 

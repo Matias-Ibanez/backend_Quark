@@ -24,6 +24,8 @@ def settings():
     ('PUBLIC_API_ORIGIN','https://api.quark.test/path'), ('HERMES_API_KEY','short'),
     ('QUARK_ADMIN_PASSWORD','short'), ('PEXELS_API_KEY','key\nINJECTED=value'),
     ('STUDIO_PORT','0'), ('QUARK_REMOTION_CONCURRENCY','5'),
+    ('STUDIO_BIND_IP','0.0.0.0'), ('STUDIO_BIND_IP','8.8.8.8'),
+    ('STUDIO_BIND_IP','studio'), ('STUDIO_BIND_IP','10.10.10.102:8011'),
 ])
 def test_invalid_settings_fail_before_creating_file(tmp_path, key, value):
     values = {**settings(),key:value}
@@ -68,6 +70,18 @@ def test_bootstrap_password_is_not_trimmed_or_written(tmp_path):
     values = {**settings(),'QUARK_ADMIN_PASSWORD':'12345678901 '}
     write_env(target,values)
     assert '12345678901' not in target.read_text()
+
+
+@pytest.mark.skipif(not shutil.which('docker'), reason='Docker CLI needed; no daemon used')
+@pytest.mark.parametrize('ip', ['127.0.0.1', '10.10.10.102'])
+def test_compose_binds_api_only_to_chosen_interface(tmp_path, ip):
+    write_env(tmp_path/'.env', {**settings(), 'STUDIO_BIND_IP':ip})
+    root = Path(__file__).resolve().parents[1]
+    env = {**os.environ, 'STUDIO_BIND_IP':ip, 'STUDIO_PORT':'8011'}
+    result = subprocess.run(['docker','compose','--env-file',str(tmp_path/'.env'),'-f',str(root/'compose.yaml'),'-f',str(root/'compose.deploy.yaml'),'config','--format','json'],env=env,capture_output=True,text=True,check=True,timeout=20)
+    services = json.loads(result.stdout)['services']
+    assert services['studio']['ports'] == [{'mode':'ingress','host_ip':ip,'target':8000,'published':'8011','protocol':'tcp'}]
+    assert not services['hermes'].get('ports') and not services['shorts'].get('ports')
 
 
 @pytest.mark.skipif(not shutil.which('docker'), reason='Docker CLI needed; no daemon used')

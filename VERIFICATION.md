@@ -1,5 +1,11 @@
 # Verificación del prototipo
 
+## 2026-09-28 — Caddy en otra LXC
+
+- Caddy confirmado en 10.10.10.10, API en 10.10.10.102. Compose permite STUDIO_BIND_IP opt-in con loopback predeterminado; el workflow admite Variable o Secret. El serializador acepta solo IPv4 RFC1918 o loopback y rechaza 0.0.0.0, IP pública, hostname y dirección con puerto. No cambia límites CPU/RAM, autenticación ni puertos privados de los motores.
+- `python -m pytest -q --tb=short tests/test_deploy.py` en venv descartable: **21 aprobadas, 1,73 s**. Docker Compose real, sin daemon, verificó host_ip/puerto tanto para loopback como para 10.10.10.102 y ausencia de puertos en Hermes/shorts. actionlint 1.7.12 y git diff --check aprobados. La publicación real y configuración de Caddy/túnel quedan pendientes del despliegue y del cambio del proxy.
+- DEPLOY_GITHUB.md documenta el matcher de Caddy, probes privado/público y cobertura automática de Cloudflare para el hostname api-quark. No se modifica Caddy ni su firewall desde este repositorio. Reversión: retirar STUDIO_BIND_IP del workflow/serializador/env, restaurar bind fijo en Compose y documentación; conserva proyectos y sesiones y vuelve a cerrar el acceso desde otra LXC.
+
 ## 2026-09-28 — Claves pegadas con espacios o saltos finales
 
 - Run 36460773503 ya resolvió las URLs desde Secrets, pero falló antes de Docker por caracteres no admitidos en DEEPSEEK_API_KEY. No se inspeccionaron los valores de los secretos. write_env.py ahora recorta whitespace externo de claves/orígenes; mantiene el rechazo de saltos internos y omite del archivo la contraseña admin, que no se recorta.
