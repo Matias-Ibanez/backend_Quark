@@ -44,6 +44,32 @@ def test_env_never_contains_admin_password_or_prints_secret(tmp_path, capsys):
         assert target.stat().st_mode & 0o777 == 0o600
 
 
+def test_pasted_keys_and_urls_trim_outer_whitespace_only(tmp_path):
+    original = settings()
+    values = {key:' \r\n'+value+'\r\n\t' for key,value in original.items()}
+    values['QUARK_ADMIN_PASSWORD'] = original['QUARK_ADMIN_PASSWORD']
+    target = tmp_path/'.env'
+    write_env(target, values)
+    text = target.read_text()
+    for key in ('DEEPSEEK_API_KEY','PUBLIC_APP_ORIGIN','HERMES_API_KEY'):
+        assert f"{key}='{original[key]}'" in text
+    assert '\r' not in text and original['QUARK_ADMIN_PASSWORD'] not in text
+
+
+@pytest.mark.parametrize('key', ['DEEPSEEK_API_KEY','PUBLIC_APP_ORIGIN'])
+def test_whitespace_only_key_or_url_is_missing(tmp_path, key):
+    with pytest.raises(ValueError, match='Falta configurar'):
+        write_env(tmp_path/'.env', {**settings(),key:' \r\n\t'})
+
+
+def test_bootstrap_password_is_not_trimmed_or_written(tmp_path):
+    target = tmp_path/'.env'
+    # Eleven characters plus one intentional space reaches the minimum.
+    values = {**settings(),'QUARK_ADMIN_PASSWORD':'12345678901 '}
+    write_env(target,values)
+    assert '12345678901' not in target.read_text()
+
+
 @pytest.mark.skipif(not shutil.which('docker'), reason='Docker CLI needed; no daemon used')
 def test_compose_reads_quoted_secrets_literally(tmp_path):
     values = {**settings(), 'DEEPSEEK_API_KEY': "test$HOME${ABC}#'\\path"}

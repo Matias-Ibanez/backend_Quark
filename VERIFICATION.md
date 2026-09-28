@@ -1,5 +1,10 @@
 # Verificación del prototipo
 
+## 2026-09-28 — Claves pegadas con espacios o saltos finales
+
+- Run 36460773503 ya resolvió las URLs desde Secrets, pero falló antes de Docker por caracteres no admitidos en DEEPSEEK_API_KEY. No se inspeccionaron los valores de los secretos. write_env.py ahora recorta whitespace externo de claves/orígenes; mantiene el rechazo de saltos internos y omite del archivo la contraseña admin, que no se recorta.
+- `python -m pytest -q --tb=short tests/test_deploy.py` en el venv descartable: **15 aprobadas, 0,94 s**. Cubren whitespace externo, valores solo blancos, saltos interiores, contraseña exacta y el serializador con Docker Compose real sin daemon. actionlint y git diff --check aprobados. El arranque remoto sigue pendiente del siguiente run. Reversión: retirar esta normalización y sus pruebas; no modifica ninguna credencial existente ni volúmenes.
+
 ## 2026-09-28 — Orígenes públicos en Secrets o Variables
 
 - El error de configuración informado correspondía a URLs guardadas como Secrets mientras el workflow consultaba solo vars. Los dos orígenes ahora usan Variable no vacía como primera opción y Secret como alternativa. No se modifican la validación HTTPS, la generación privada de .env ni los controles de autenticación.

@@ -27,6 +27,8 @@ Las URLs `PUBLIC_APP_ORIGIN` y `PUBLIC_API_ORIGIN` también pueden estar en **Se
 
 El workflow valida todo antes de construir o modificar servicios. Si faltan secretos/orígenes, falla indicando sus nombres, sin imprimir valores. No incluye credenciales predeterminadas. **Agregar este workflow no configura automáticamente los Secrets de GitHub.**
 
+Al copiar claves o URLs, se eliminan espacios y saltos de línea de los extremos. Un salto de línea dentro del valor se sigue rechazando. La contraseña admin se usa exactamente como fue guardada, sin recortarla.
+
 ## Requisitos del runner y la LXC Docker
 
 El runner de organización debe admitir este repositorio y tener etiquetas `self-hosted` y `linux`, Bash, Python 3, Docker CLI y Docker Compose **2.24.4 o posterior**. Debe poder conectarse a la LXC Docker y descargar el checkout de GitHub. La LXC Docker requiere espacio para Manim, LaTeX, Chromium y los datos, y salida a Internet para descargar imágenes y contactar proveedores.

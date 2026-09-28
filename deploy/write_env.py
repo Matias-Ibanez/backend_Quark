@@ -7,6 +7,8 @@ from urllib.parse import urlparse
 def write_env(path, values):
     required = ('DEEPSEEK_API_KEY', 'PEXELS_API_KEY', 'HERMES_API_KEY',
                 'SHORTS_API_KEY', 'PUBLIC_APP_ORIGIN', 'PUBLIC_API_ORIGIN')
+    # Pasted provider keys/URLs often carry a trailing newline. Passwords stay exact.
+    values = {**values, **{key: values.get(key, '').strip() for key in required}}
     for key in required:
         if not values.get(key):
             raise ValueError(f'Falta configurar {key} en GitHub Actions.')
