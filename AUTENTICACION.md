@@ -2,6 +2,8 @@
 
 QUARK tiene una única cuenta `admin`, sin registro público ni contraseña predeterminada. Antes de configurarla, la API y los archivos permanecen cerrados. El frontend muestra `/login`; cada profesor puede iniciar una sesión independiente con las mismas credenciales. Todos comparten conversaciones y recursos: no son cuentas personales.
 
+El workflow de [DEPLOY_GITHUB.md](DEPLOY_GITHUB.md) inicializa la cuenta con `QUARK_ADMIN_PASSWORD` de GitHub Secrets por entrada estándar, solo cuando todavía no existe. No rota la contraseña en cada actualización. `PUBLIC_API_ORIGIN` permite un hostname propio de API para Vercel + túnel; `PUBLIC_APP_ORIGIN` sigue siendo el único origen autorizado del navegador.
+
 ## Crear o cambiar la contraseña
 
 Desde el repositorio del backend, con Docker disponible:

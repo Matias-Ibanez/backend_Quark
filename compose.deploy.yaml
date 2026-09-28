@@ -1,0 +1,12 @@
+# Docker Compose >= 2.24.4. Remove client-side binds for a remote Docker daemon.
+# Use with: docker compose -f compose.yaml -f compose.deploy.yaml ...
+services:
+  hermes:
+    volumes: !override
+      - hermes-data:/opt/data
+      - studio-data:/workspace
+  shorts:
+    image: lienzo-shorts:deploy
+    build: ./mpt
+    volumes: !override
+      - shorts-data:/MoneyPrinterTurbo/storage

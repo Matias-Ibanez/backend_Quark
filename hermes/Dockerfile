@@ -17,3 +17,7 @@ COPY patch_usage.py /tmp/patch_usage.py
 COPY quark_video.py /opt/hermes/quark_video.py
 COPY test_quark_video.py /opt/hermes/test_quark_video.py
 RUN python /tmp/patch_usage.py && /opt/hermes/.venv/bin/python -m py_compile /opt/hermes/gateway/platforms/api_server.py
+# CI seeds the private volume from these image-owned files; no remote host binds.
+COPY config.yaml /opt/quark-deploy/config.yaml
+COPY skills/ /opt/quark-deploy/skills/
+COPY install_runtime.py /opt/quark-deploy/install_runtime.py

@@ -4,6 +4,8 @@ El acceso usa una única cuenta `admin` con sesiones privadas y revocables. Ante
 
 Este repositorio contiene la API, Hermes, las herramientas multimedia y los datos persistentes de QUARK. La interfaz vive en [landing-quark](https://github.com/Matias-Ibanez/landing-quark). DeepSeek aporta el modelo; las publicaciones estáticas se crean como SVG vectorial editable y Playwright/Chromium genera una vista PNG. Remotion, Manim y FFmpeg producen videos, y rembg separa sujetos de fotos subidas. Todo corre sin GPU dedicada y sin generación de fotografías por difusión. Una foto incorporada en un SVG sigue siendo raster; el texto y las formas son vectores.
 
+Para desplegar automáticamente con el runner de la organización en otra LXC y Docker remoto, seguí [DEPLOY_GITHUB.md](DEPLOY_GITHUB.md). El workflow de `main` conserva volúmenes, instala skills desde las imágenes e inicializa admin solo una vez. Requiere configurar los Secrets y Variables de GitHub antes del primer despliegue.
+
 ## Iniciar el backend
 
 Necesitás Docker Desktop o Docker Engine con Compose, y una clave de DeepSeek con saldo. Desde este repositorio:

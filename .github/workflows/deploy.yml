@@ -1,0 +1,88 @@
+name: Deploy QUARK backend to LXC
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quark-backend-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    env:
+      DOCKER_HOST: ${{ vars.QUARK_DOCKER_HOST || 'tcp://10.10.10.102:2375' }}
+      COMPOSE_FILE: compose.yaml:compose.deploy.yaml
+      COMPOSE_PROJECT_NAME: lienzo
+      COMPOSE_PARALLEL_LIMIT: '1'
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Generate private deployment settings
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          HERMES_API_KEY: ${{ secrets.HERMES_API_KEY }}
+          SHORTS_API_KEY: ${{ secrets.SHORTS_API_KEY }}
+          QUARK_ADMIN_PASSWORD: ${{ secrets.QUARK_ADMIN_PASSWORD }}
+          PUBLIC_APP_ORIGIN: ${{ vars.PUBLIC_APP_ORIGIN }}
+          PUBLIC_API_ORIGIN: ${{ vars.PUBLIC_API_ORIGIN }}
+          STUDIO_PORT: ${{ vars.STUDIO_PORT }}
+          QUARK_REMOTION_CONCURRENCY: ${{ vars.QUARK_REMOTION_CONCURRENCY }}
+          QUARK_POST_REASONING: ${{ vars.QUARK_POST_REASONING }}
+        run: python3 deploy/write_env.py
+
+      - name: Validate Compose and remote Docker
+        id: validate
+        run: |
+          set -euo pipefail
+          docker compose config --quiet
+          docker info --format 'Docker={{.ServerVersion}} CPU={{.NCPU}} RAM={{.MemTotal}}'
+
+      - name: Build images before updating running services
+        run: docker compose build --pull studio hermes shorts
+
+      - name: Install bundled Hermes configuration and skills
+        run: |
+          set -euo pipefail
+          docker compose stop hermes
+          docker compose run --rm --no-deps --entrypoint /opt/hermes/.venv/bin/python hermes /opt/quark-deploy/install_runtime.py
+
+      - name: Initialize admin only on first installation
+        env:
+          QUARK_ADMIN_PASSWORD: ${{ secrets.QUARK_ADMIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$QUARK_ADMIN_PASSWORD" | docker compose run --rm --no-deps -T studio python -m backend.auth initialize
+
+      - name: Update services while preserving volumes
+        run: docker compose up -d --force-recreate studio hermes shorts
+
+      - name: Verify API, private access and media engines
+        run: |
+          set -euo pipefail
+          docker compose exec -T studio python < deploy/check_ready.py
+          docker compose exec -T hermes /opt/hermes/.venv/bin/python -c 'from pathlib import Path; names=("quark-marketing","quark-documents","quark-narration","manimce-best-practices","remotion-best-practices","quark-static-post","quark-style-editorial","quark-style-product","quark-style-typographic"); assert all((Path("/opt/data/skills")/n/"SKILL.md").is_file() for n in names); print("Skills verificadas.")'
+          docker compose ps
+
+      - name: Report container state on failure
+        if: failure() && steps.validate.outcome == 'success'
+        timeout-minutes: 1
+        run: docker compose ps -a
+
+      - name: Remove generated settings from runner
+        if: always()
+        run: rm -f -- .env

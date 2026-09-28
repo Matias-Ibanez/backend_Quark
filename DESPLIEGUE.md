@@ -1,5 +1,7 @@
 # Levantar QUARK en un servidor con TLS
 
+Si el runner y Docker están en LXC distintas, usá el workflow y las instrucciones de [DEPLOY_GITHUB.md](DEPLOY_GITHUB.md). Esta guía describe el despliegue manual del frontend y backend en el mismo servidor.
+
 QUARK usa dos repositorios y dos despliegues Compose en el mismo servidor. [backend_Quark](https://github.com/mibanez-devops/backend_quark) inicia `studio`, Hermes y MoneyPrinterTurbo; [landing-quark](https://github.com/Matias-Ibanez/landing-quark) inicia Next.js. Comparten la red Docker `quark-shared`. El proxy HTTPS apunta al frontend en `127.0.0.1:8010`; la API solo escucha en `127.0.0.1:8011` y en la red compartida. El acceso requiere la cuenta compartida `admin`, configurada según [AUTENTICACION.md](AUTENTICACION.md); las rutas y archivos quedan cerrados antes de configurar su contraseña.
 
 ## Preparación
