@@ -318,6 +318,7 @@ Función elegida: {function}."""
             prompt += "\nEste video tiene etapas controladas por la aplicación: la instrucción de etapa al final define qué debés hacer ahora. En creación/corrección solo prepará fuentes y recursos; la aplicación ejecuta render-video.mjs y solicita la revisión de una lámina. No hagas renders ni revisiones por tu cuenta."
     elif wants_video:
         prompt += "\n\n# Producción de animaciones en este proyecto\nAntes de escribir o modificar una animación, cargá manimce-best-practices con tu herramienta de skills. Leé su perfil QUARK Docker y las guías pertinentes de rules/: composición, texto, transiciones y timing. Usá Manim Community con Cairo por CPU, sin -p ni OpenGL. Toda escena de Manim debe tener fondo negro puro (#000000): configurá config.background_color = BLACK y self.camera.background_color = BLACK en cada escena. No uses fondos de marca, degradados ni placas de pantalla completa que tapen el negro; aplicá la paleta únicamente a textos, figuras y gráficos. Mantené esta regla al editar y comprobá el fondo en los fotogramas de revisión. Conservá las dimensiones confirmadas tanto en píxeles como en el encuadre lógico. No cargues obligatoriamente manim-video ni sus presets: la guía principal es manimce-best-practices. Para un montaje con originales, aplicá esto solo si agregás animaciones con Manim."
+        prompt += "\n\n# Flujo eficiente de animación\nManim, LaTeX, fuentes, Edge TTS y FFmpeg ya están instalados: no hagas inventarios ni instalaciones. Leé solo el perfil y las guías necesarias. Agrupá la escritura de plan.md, caption.txt, narration.txt y script.py; medí la voz antes de fijar tiempos. Usá rutas absolutas para renders y mezcla, sin adivinar carpetas por presets. Hacé como máximo un borrador a 270x480 (vertical) o 480x270 (horizontal), 15 fps, con el mismo encuadre; reuní inicio, medio y cierre en una lámina e inspeccionala una vez. Corregí solo errores concretos. Renderizá el final una vez a las dimensiones confirmadas y 30 fps, manteniendo el caché de Manim. Si solo falta agregar voz, mezclá con FFmpeg -c:v copy sin volver a renderizar ni recodificar el video. Comprobá duración, dimensiones y audio en una sola llamada ffprobe. Creá las carpetas de revisión antes de escribir PNGs. Terminá cuando final.mp4 sea válido; no hagas rondas cosméticas ni inspecciones repetidas de las mismas imágenes."
     if wants_image and not wants_video:
         prompt += "\n\n# Flujo eficiente para publicaciones\nLas guías quark-marketing y quark-static-post ya están incluidas arriba: aplicalas sin volver a cargarlas. Consultá solo una skill de estilo acorde al pedido. Conservá el SVG editable y no sacrifiques composición ni revisión visual por velocidad. Agrupá la escritura de plan, SVG y caption en una sola operación de archivos/terminal. Finalizá el SVG seguro y renderizá directamente final.png; inspeccioná ese PNG y corregí/rerenderizá únicamente si hay un problema. Si la fuente no cambió tras revisarlo, ese mismo PNG es la entrega: no hagas otro render ni dupliques draft/final. Para un carrusel finalizá primero todas las fuentes y usá render.mjs --batch con un manifiesto JSON en el directorio de proyecto; cada job tiene source, output, width y height confirmados. Inspeccioná todas las láminas y rerenderizá solo las modificadas. No instales paquetes ni consultes guías de video para una imagen. Los hechos, el texto exacto, las dimensiones y la entrega SVG+PNG siguen siendo obligatorios."
     copy_policy = None
@@ -345,7 +346,9 @@ Función elegida: {function}."""
                 from . import motion as motion_pipeline
                 result = await motion_pipeline.produce(client, url, headers, payload, folder, project_id, creative_brief, metrics)
             else:
+                request_started = time.monotonic()
                 response = await client.post(url, headers=headers, json=payload)
+                costs.log.info(json.dumps({"event": "hermes_generation", "project_id": project_id, "seconds": round(time.monotonic() - request_started, 3), "status": response.status_code}))
                 if response.status_code != 200:
                     log.warning("Hermes devolvió HTTP %s", response.status_code)
                     raise HTTPException(502, "No pude completar el pedido. Probá de nuevo en unos minutos.")
@@ -381,10 +384,12 @@ Función elegida: {function}."""
             if violations:
                 log.warning("Texto añadido a copy exacto: project=%s count=%d", project_id, len(violations))
                 raise HTTPException(422, "No pude dejar el texto exactamente como lo pediste. Podés reintentar la pieza.")
+    import_started = time.monotonic()
     media = import_hermes_media(project_id, folder, before, target_seconds, require_audio, preferred_kind, require_vector=wants_image and not wants_video,
                                slides=creative_brief["slides"] if creative_brief and creative_brief["medium"] == "carousel" else None,
                                dimensions=creative_brief["dimensions"] if creative_brief else None,
                                apply_music=not creative_brief or creative_brief["music"] != "none")
+    costs.log.info(json.dumps({"event": "artifact_delivery", "project_id": project_id, "seconds": round(time.monotonic() - import_started, 3), "media_count": len(media)}))
     metrics["media_kind"] = "video" if any(path.endswith(".mp4") for path in media) else "image" if any(path.endswith((".png", ".svg")) for path in media) else None
     metrics["media_count"] = len(media)
     wants_media = bool(re.search(r"\b(?:cre[aá]\w*|hac[eé]\w*|gener[aá]\w*|diseñ[aá]\w*|arm[aá]\w*|rehac\w*|mejor\w*)\b", message, re.I) and re.search(r"\b(?:post|publicaci[oó]n|imagen|diseño|video|vídeo|reel|pieza|banner|logo|flyer|svg)\b", message, re.I))

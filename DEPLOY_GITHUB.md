@@ -23,7 +23,7 @@ Las URLs `PUBLIC_APP_ORIGIN` y `PUBLIC_API_ORIGIN` también pueden estar en **Se
 - `QUARK_DOCKER_HOST`: opcional; por defecto `tcp://10.10.10.102:2375`. Cambialo si la LXC destino es otra.
 - `STUDIO_PORT`: opcional; por defecto `8011`, enlazado solo a `127.0.0.1` de la LXC Docker.
 - `STUDIO_BIND_IP`: opcional, Variable o Secret; por defecto `127.0.0.1`. Si Caddy corre en otra LXC, usá la IPv4 privada de la LXC Docker (`10.10.10.102` en este servidor). Se rechazan IP públicas y `0.0.0.0`. Restringí el puerto en el firewall a la IP del proxy (`10.10.10.10` en este servidor).
-- `QUARK_REMOTION_CONCURRENCY`: opcional, `1`–`4`, por defecto `2` para el i3.
+- `QUARK_REMOTION_CONCURRENCY`: opcional, `1`–`4`, por defecto `4` para la LXC de 4 CPU y 12 GiB. Si hay presión de memoria, bajalo a `2`. Las páginas renderizan fotogramas en paralelo; esto no convierte Manim Cairo ni la espera del modelo en operaciones paralelas.
 - `QUARK_POST_REASONING`: opcional, `off` u `on`, por defecto `off`.
 
 El workflow valida todo antes de construir o modificar servicios. Si faltan secretos/orígenes, falla indicando sus nombres, sin imprimir valores. No incluye credenciales predeterminadas. **Agregar este workflow no configura automáticamente los Secrets de GitHub.**

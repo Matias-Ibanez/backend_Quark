@@ -1,5 +1,13 @@
 # Verificación del prototipo
 
+## 2026-09-28 — Render y latencia del agente
+
+- Docker remoto informa 4 CPU y 12 GiB; Hermes ya dispone de cuota de 4 CPU y 6 GiB, sin cpuset. Subir la cuota no paraleliza la evaluación Python/Cairo de Manim ni la espera del proveedor. El pedido diagnosticado consumió 40 turnos de agente en 316 s; no se atribuye ese tiempo completo al render.
+- Remotion usa 4 tareas por defecto (configurable 1–4) y preset H.264 veryfast, conservando CRF 20, dimensiones y 30 fps. Compose, CI y ejemplo env coinciden. Prompt/skill Manim piden un borrador pequeño a 15 fps, una lámina de revisión, caché activo, rutas explícitas y mux de voz con copia de video. No se cambia el modelo ni se desactiva su razonamiento para video. Los eventos privados hermes_generation/artifact_delivery separan duración de generación y publicación sin registrar prompts ni claves.
+- Prueba A/B puntual en contenedor aislado de la imagen Hermes del servidor, 4 CPU/6 GiB, sin red, credenciales ni volúmenes de producción: misma composición animada de 5 s a 720x1280/30 fps, baseline 2 tareas/preset anterior **10,857 s**, nuevo 4 tareas/veryfast **7,335 s**. ffprobe confirmó formato y duración en ambos MP4; 3 pruebas Node del renderer aprobadas. Es una muestra de render, no un benchmark repetido ni una mejora garantizada del tiempo completo del agente; diferencias de tamaño/compresión son posibles.
+- Pruebas aisladas Linux de agent/carousel/post/video: **14 aprobadas, 1,15 s**, con FFmpeg real y proveedor simulado. Windows: tests de producción requieren os.chown de Linux y FFmpeg; los 6 fallos de post_performance allí son incompatibilidad de plataforma, no evidencia del contenedor. Las 21 pruebas de despliegue pasaron. git diff --check aprobado.
+- Reversión: volver a concurrencia 2 en renderer/Compose/serializador/env y Variable de GitHub, retirar preset veryfast, instrucciones eficientes y eventos de tiempo de agent.py y skill; conserva chats, medios, permisos y configuración del proveedor.
+
 ## 2026-09-28 — Agrupación de carruseles
 
 - Cada entrega completa conserva SVG+PNG y un carouselId propio, slideIndex consecutivo y slideCount en sus jobs. Las revisiones tienen identificadores diferentes para que el visor no mezcle láminas de versiones distintas; la validación de todas las imágenes previa a la publicación permanece activa.

@@ -29,7 +29,7 @@ def write_env(path, values):
         'STUDIO_PORT': values.get('STUDIO_PORT') or '8011',
         'STUDIO_BIND_IP': (values.get('STUDIO_BIND_IP') or '127.0.0.1').strip(),
         'FRONTEND_PORT': values.get('FRONTEND_PORT') or '8010',
-        'QUARK_REMOTION_CONCURRENCY': values.get('QUARK_REMOTION_CONCURRENCY') or '2',
+        'QUARK_REMOTION_CONCURRENCY': values.get('QUARK_REMOTION_CONCURRENCY') or '4',
         'QUARK_POST_REASONING': values.get('QUARK_POST_REASONING') or 'off',
     })
     try:

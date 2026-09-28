@@ -49,7 +49,7 @@ services:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       HERMES_WRITE_SAFE_ROOT: /workspace
       U2NET_HOME: /opt/data/rembg-models
-      QUARK_REMOTION_CONCURRENCY: ${QUARK_REMOTION_CONCURRENCY:-2}
+      QUARK_REMOTION_CONCURRENCY: ${QUARK_REMOTION_CONCURRENCY:-4}
     volumes:
       - hermes-data:/opt/data
       - ./hermes/config.yaml:/opt/data/config.yaml:ro

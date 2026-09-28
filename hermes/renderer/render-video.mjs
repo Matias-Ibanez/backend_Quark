@@ -64,7 +64,7 @@ export async function render(args) {
   if (preview) args = args.slice(1);
   const [sourceArg, outputArg, widthArg, heightArg, secondsArg, frameArg] = args;
   if (args.length < 5 || args.length > 6) throw new Error('Usage: render-video.mjs Video.tsx output.mp4 WIDTH HEIGHT SECONDS; or output.png WIDTH HEIGHT SECONDS FRAME');
-  const concurrency = Number(process.env.QUARK_REMOTION_CONCURRENCY || 2);
+  const concurrency = Number(process.env.QUARK_REMOTION_CONCURRENCY || 4);
   const config = dimensions(Number(widthArg), Number(heightArg), Number(secondsArg), concurrency);
   const source = await workspacePath(sourceArg);
   if (!/\.(?:tsx|jsx)$/.test(source)) throw new Error('Export a default React component in a .tsx or .jsx file.');
@@ -127,7 +127,7 @@ sheet.save(sys.argv[1])
       await renderStill({serveUrl, composition, output: staged, frame, imageFormat: 'png', chromiumOptions, puppeteerInstance: browser});
     } else {
       await renderMedia({serveUrl, composition, outputLocation: staged, codec: 'h264',
-        pixelFormat: 'yuv420p', concurrency, crf: 20, chromiumOptions, puppeteerInstance: browser});
+        pixelFormat: 'yuv420p', concurrency, crf: 20, x264Preset: 'veryfast', chromiumOptions, puppeteerInstance: browser});
     }
     await fs.rename(staged, output);
     const result = {ok: true, ...config, concurrency, still, preview, frames, bytes: (await fs.stat(output)).size,
