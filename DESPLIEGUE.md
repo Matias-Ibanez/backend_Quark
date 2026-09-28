@@ -1,13 +1,13 @@
 # Levantar QUARK en un servidor con TLS
 
-QUARK usa dos repositorios y dos despliegues Compose en el mismo servidor. [backend_Quark](https://github.com/Matias-Ibanez/backend_Quark) inicia `studio`, Hermes y MoneyPrinterTurbo; [landing-quark](https://github.com/Matias-Ibanez/landing-quark) inicia Next.js. Comparten la red Docker `quark-shared`. El proxy HTTPS apunta al frontend en `127.0.0.1:8010`; la API solo escucha en `127.0.0.1:8011` y en la red compartida. El acceso requiere la cuenta compartida `admin`, configurada según [AUTENTICACION.md](AUTENTICACION.md); las rutas y archivos quedan cerrados antes de configurar su contraseña.
+QUARK usa dos repositorios y dos despliegues Compose en el mismo servidor. [backend_Quark](https://github.com/mibanez-devops/backend_quark) inicia `studio`, Hermes y MoneyPrinterTurbo; [landing-quark](https://github.com/Matias-Ibanez/landing-quark) inicia Next.js. Comparten la red Docker `quark-shared`. El proxy HTTPS apunta al frontend en `127.0.0.1:8010`; la API solo escucha en `127.0.0.1:8011` y en la red compartida. El acceso requiere la cuenta compartida `admin`, configurada según [AUTENTICACION.md](AUTENTICACION.md); las rutas y archivos quedan cerrados antes de configurar su contraseña.
 
 ## Preparación
 
 Necesitás Docker Engine con Compose, un dominio con TLS en tu proxy y una clave de DeepSeek con saldo. Reservá espacio para las imágenes Docker, los medios generados y los tres volúmenes persistentes. No se necesita GPU dedicada.
 
 ```bash
-git clone https://github.com/Matias-Ibanez/backend_Quark.git quark-backend
+git clone https://github.com/mibanez-devops/backend_quark.git quark-backend
 git clone https://github.com/Matias-Ibanez/landing-quark.git quark-frontend
 cd quark-backend
 cp .env.example .env
